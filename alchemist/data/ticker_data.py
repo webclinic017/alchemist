@@ -4,6 +4,7 @@ import datetime
 import pandas as pd
 import yfinance as yf
 from copy import deepcopy
+from torch.utils.data import Dataset
 
 
 def download_data(tickers, date = None, from_date = None, to_date = None):
@@ -40,38 +41,50 @@ def format_into_percentages(data, formatting_basis = "first open"):
     formatted_data["Formatting"] += [formatting_basis, "percentages"]
 
     for ticker in formatted_data["Data"].keys():
-        df = formatted_data["Data"][ticker]
+        df_ohlc = formatted_data["Data"][ticker].drop(["Volume"], axis=1)
+        df_volume = formatted_data["Data"][ticker]["Volume"].copy()
 
         if formatting_basis == "first open":
-            first_date = df.index[0]
-            first_open = df["Open"][first_date]
-            for column, datapoint in df.items():
+            first_date = df_ohlc.index[0]
+            first_open = df_ohlc["Open"][first_date]
+            for column, datapoint in df_ohlc.items():
                 datapoint /= first_open
         # TODO: daily close and daily open are similar, should they be combined?
         elif formatting_basis == "daily close":
             # WARNING: This cuts off the very first datapoint
-            new_df = df.copy() # TODO: This may be could be optimized
-            dates = df.index
+            new_df = df_ohlc.copy() # TODO: This may be could be optimized
+            dates = df_ohlc.index
             for date_index in range(len(dates)):
-                last_close = df["Close"][dates[date_index - 1]]
+                last_close = df_ohlc["Close"][dates[date_index - 1]]
                 for column in new_df.columns:
                     new_df.loc[dates[date_index], column] /= last_close
-            formatted_data["Data"][ticker] = new_df.iloc[1:]
+            df_ohlc = new_df.iloc[1:]
 
         elif formatting_basis == "daily open":
             # WARNING: This cuts off the very first datapoint
-            new_df = df.copy() # TODO: this may be could be optimized
-            dates = df.index
+            new_df = df_ohlc.copy() # TODO: this may be could be optimized
+            dates = df_ohlc.index
             for date_index in range(len(dates)):
-                last_close = df["Close"][dates[date_index - 1]]
-                latest_open = df["Open"][dates[date_index]]
+                last_close = df_ohlc["Close"][dates[date_index - 1]]
+                latest_open = df_ohlc["Open"][dates[date_index]]
                 for column in new_df.columns:
                     new_df.loc[dates[date_index], column] /= latest_open if (
                         column != "Open"
                     ) else last_close
-            formatted_data["Data"][ticker] = new_df.iloc[1:]
+            df_ohlc = new_df.iloc[1:]
         else:
             raise Exception("Invalid formatting basis given")
+        # Format volume column seperately
+        dates = df_volume.index
+        new_df_volume = df_volume.copy()
+        for date_index in range(len(dates)):
+            last_vol = df_volume[dates[date_index - 1]]
+            new_df_volume.iloc[date_index] /= last_vol
+        df_volume = new_df_volume
+
+        new_df = df_ohlc
+        new_df["Volume"] = df_volume
+        formatted_data["Data"][ticker] = new_df
 
     return formatted_data
 
@@ -109,3 +122,39 @@ def adjust_for_volatility(data, volatility_type = "global v"):
         adjusted_data["Data"][ticker] = new_df
 
     return adjusted_data
+
+def format_into_xy(data, label_var = "Close", num_features = 1, label_type = "float",
+                   label_type_vars = {}):
+    x_data = []
+    y_data = []
+
+    for ticker in data["Data"].keys():
+        df = data["Data"][ticker]
+        for date_index in range(len(df.index))[num_features-1:]:
+            x_data.append([l.tolist() for l in df.iloc[
+                date_index-num_features : date_index
+            ].values])
+            y_data.append(df.loc[df.index[date_index], [label_var]].values[0])
+
+    # Labels may need to be changed for classification etc.
+    if label_type == "bin":
+        # "bin" for binary classification
+        divider = label_type_vars["divider"]
+        for i in range(len(y_data)):
+            y_data[i] = 1 if y_data[i] >= divider else 0
+
+    return x_data, y_data
+
+class TickerDataset (Dataset):
+    # TickerDataset interacts correctly with data_loader
+    def __init__(self, x_data, y_data, split_data = False):
+        # Set parameters and things
+        self.x_data = x_data
+        self.y_data = y_data
+        self.length = len(self.x_data)
+
+    def __getitem__(self, index):
+        return self.x_data[index], self.y_data[index]
+
+    def __len__(self):
+        return self.length
