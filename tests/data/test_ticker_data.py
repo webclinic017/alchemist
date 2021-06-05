@@ -104,11 +104,11 @@ class TestDataFormatting(unittest.TestCase):
         # Trading volume also needs to be formatted, seperately from the rest
         formatted = format_into_percentages(self.example_data, "first open")
         tsla_data = formatted["Data"]["TSLA"]
-        self.assertAlmostEqual(tsla_data["Volume"]["18-03-2021"], 0.829, 3)
+        self.assertAlmostEqual(tsla_data["Volume"]["18-03-2021"], 0.823, 3)
         # The results should be the same for different formatting types
         formatted = format_into_percentages(self.example_data, "daily close")
         tsla_data = formatted["Data"]["TSLA"]
-        self.assertAlmostEqual(tsla_data["Volume"]["18-03-2021"], 0.829, 3)
+        self.assertAlmostEqual(tsla_data["Volume"]["18-03-2021"], 0.823, 3)
 
     def test_adjusting_for_global_volatility(self):
         formatted = format_into_percentages(self.example_data, "first open")
@@ -172,6 +172,7 @@ class TestPreparingDataForTraining(unittest.TestCase):
                 self.adjusted_data = adjust_for_volatility(self.example_data,
                                                            "global v")
 
+
     def assertXYCorrespondance(self, x_value, y_value, x_data, y_data):
         # As this is used a bunch, it's nice to put it into its own function
         self.assertIn(x_value, x_data)
@@ -185,8 +186,8 @@ class TestPreparingDataForTraining(unittest.TestCase):
         x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
                                         label_var = "Close")
         # The full data for GME 2021-03-12
-        x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615,
-                    1.0087307269756611, 1.0576923076923077, 0.9139537358972539]]
+        x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615, 
+                    1.0087307269756611, 1.0576923076923077, 0.9128794701986755]]
         y_value = 0.8322873322860055
         self.assertXYCorrespondance(x_value, y_value, x_data, y_data)
 
@@ -209,19 +210,19 @@ class TestPreparingDataForTraining(unittest.TestCase):
         x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
                                         label_var = "Close", label_type = "bin",
                                         label_type_vars = label_vars)
-        x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615,
-                    1.0087307269756611, 1.0576923076923077, 0.9139537358972539]]
+        x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615, 
+                    1.0087307269756611, 1.0576923076923077, 0.9128794701986755]]
         y_value = 0
         self.assertXYCorrespondance(x_value, y_value, x_data, y_data)
 
     def test_formatting_into_dataset(self):
         x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
                                         label_var = "Close")
-        datset = TickerDataset(x_data, y_data, split_data = False)
-        x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615,
-                    1.0087307269756611, 1.0576923076923077, 0.9139537358972539]]
+        dataset = TickerDataset(x_data, y_data, split_data = False)
+        x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615, 
+                    1.0087307269756611, 1.0576923076923077, 0.9128794701986755]]
         y_value = 0.8322873322860055
-        l = length(x_data)
+        l = len(x_data)
         # Testing if we can acess the dataset correctlye
         self.assertXYCorrespondance(x_value, y_value,
                                     dataset.x_data, dataset.y_data)
