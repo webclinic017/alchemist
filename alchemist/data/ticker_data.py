@@ -1,18 +1,23 @@
+import io
 import pickle
 import datetime
+import contextlib
 import pandas as pd
 import yfinance as yf
 from copy import deepcopy
 from torch.utils.data import Dataset
 
 
-def download_data(tickers, date = None, from_date = None, to_date = None):
+def download_data(tickers, date = None, from_date = None, to_date = None, silent = False):
     if date != None:
         from_date = date
         to_date = date
     # Add 1 day to the to_date for inclusivity
     to_date = datetime.datetime.fromisoformat(to_date) + datetime.timedelta(days=1)
-    raw_data = yf.download(tickers, start = from_date, end = to_date)
+    if silent:
+        with contextlib.redirect_stdout(io.StringIO()):
+            raw_data = yf.download(tickers, start = from_date, end = to_date)
+    else: raw_data = yf.download(tickers, start = from_date, end = to_date)
     no_duplicate_data = raw_data[~raw_data.index.duplicated(keep='first')]
     # Rearrange data into a more standardized and accessible form
     if len(tickers) == 1:
