@@ -2,10 +2,12 @@ import io
 import pickle
 import datetime
 import contextlib
+import numpy as np
 import pandas as pd
 import yfinance as yf
 from copy import deepcopy
 from torch.utils.data import Dataset
+from sklearn.model_selection import train_test_split
 
 
 def download_data(tickers, date = None, from_date = None, to_date = None, silent = False):
@@ -151,7 +153,7 @@ def format_into_xy(data, label_var = "Close", num_features = 1, label_type = "fl
 
 class TickerDataset (Dataset):
     # TickerDataset interacts correctly with data_loader
-    def __init__(self, x_data, y_data, split_data = False):
+    def __init__(self, x_data, y_data):
         # Set parameters and things
         self.x_data = x_data
         self.y_data = y_data
@@ -162,3 +164,13 @@ class TickerDataset (Dataset):
 
     def __len__(self):
         return self.length
+
+# Returns a train and test TickerDataset; feels a bit wrong because
+# it acts kinda like a class constructor, but should be fine really
+def train_test_datasets(x_data, y_data, train_size = 0.8):
+    x_train, x_test, y_train, y_test = train_test_split(x_data, y_data,
+                                            train_size = train_size)
+    train_dataset = TickerDataset(x_train, y_train)
+    test_dataset = TickerDataset(x_test, y_test)
+    return train_dataset, test_dataset
+

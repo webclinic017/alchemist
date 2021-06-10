@@ -55,7 +55,6 @@ class TestDataScraping(unittest.TestCase):
         self.assertAlmostEqual(gme_data["Low"]["2021-03-18"], 196, 0)
         self.assertAlmostEqual(gme_data["Close"]["2021-03-01"], 120, 0)
 
-
 class TestDataFormatting(unittest.TestCase):
     def setUp(self):
         self.example_data = download_data(tickers = ["GME", "TSLA"],
@@ -218,7 +217,7 @@ class TestPreparingDataForTraining(unittest.TestCase):
     def test_formatting_into_dataset(self):
         x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
                                         label_var = "Close")
-        dataset = TickerDataset(x_data, y_data, split_data = False)
+        dataset = TickerDataset(x_data, y_data)
         x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615, 
                     1.0087307269756611, 1.0576923076923077, 0.9128794701986755]]
         y_value = 0.8322873322860055
@@ -231,6 +230,16 @@ class TestPreparingDataForTraining(unittest.TestCase):
         # how to test (read: can't be bothered to test) but they are very simple
         # and shouldn't break if this test works
 
+    def test_formatting_into_split_datasets(self):
+        x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
+                                        label_var = "Close")
+        train_ds, test_ds = train_test_datasets(x_data, y_data, train_size = 0.7)
+        train_l = train_ds.length
+        test_l = test_ds.length
+        self.assertAlmostEqual(train_l / 0.7, test_l / 0.3, -1)
+        train_datapoint = train_ds.x_data[0]
+        self.assertNotIn(train_datapoint, test_ds.x_data)
 
 if __name__ == '__main__':
     unittest.main()
+
