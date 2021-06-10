@@ -1,7 +1,5 @@
-import io
 import math
 import unittest
-import contextlib
 import pandas as pd
 from alchemist.data.ticker_data import *
 
@@ -11,16 +9,14 @@ class TestDataScraping(unittest.TestCase):
     def test_download_single_ticker_data(self):
         # Required because yf does different things when given one ticker
         downloaded_data = download_data(tickers = ["GME"],
-                                        date = "2021-04-01",
-                                        silent = True)
+                                        date = "2021-04-01")
         gme_data = downloaded_data["Data"]["GME"]
         self.assertEqual(math.floor(gme_data["Open"]["2021-04-01"]), 193)
         self.assertEqual(math.floor(gme_data["High"]["2021-04-01"]), 196)
 
     def test_download_multiple_ticker_data(self):
         downloaded_data = download_data(tickers = ["GME", "TSLA"],
-                                        date = "2021-04-01",
-                                        silent = True)
+                                        date = "2021-04-01")
         gme_data = downloaded_data["Data"]["GME"]
         tsla_data = downloaded_data["Data"]["TSLA"]
         self.assertEqual(math.floor(gme_data["Open"]["2021-04-01"]), 193)
@@ -33,23 +29,20 @@ class TestDataScraping(unittest.TestCase):
         #       day of data is retrieved. As I cannot see a way of fixing this,
         #       nor any negative consequences to it, it remains unfixed
         downloaded_data = download_data(tickers = ["GME"],
-                                        date = "2020-03-13",
-                                        silent = True)
+                                        date = "2020-03-13")
         gme_data = downloaded_data["Data"]["GME"]
         self.assertEqual(len(gme_data["Open"].values), 1)
         # Remember that weekends don't have data
         downloaded_data = download_data(tickers = ["GME"],
                                         from_date = "2021-03-01",
-                                        to_date = "2021-03-10",
-                                        silent = True)
+                                        to_date = "2021-03-10")
         gme_data = downloaded_data["Data"]["GME"]
         self.assertEqual(len(gme_data["Open"].values), 8)
 
     def test_download_multiple_date_data(self):
         downloaded_data = download_data(tickers = ["GME"],
                                         from_date = "2021-03-01",
-                                        to_date = "2021-04-01",
-                                        silent = True)
+                                        to_date = "2021-04-01")
         gme_data = downloaded_data["Data"]["GME"]
         self.assertAlmostEqual(gme_data["High"]["2021-04-01"], 197, 0)
         self.assertAlmostEqual(gme_data["Low"]["2021-03-18"], 196, 0)
@@ -59,8 +52,7 @@ class TestDataFormatting(unittest.TestCase):
     def setUp(self):
         self.example_data = download_data(tickers = ["GME", "TSLA"],
                                           from_date = "2021-03-01",
-                                          to_date = "2021-04-01", 
-                                          silent = True)
+                                          to_date = "2021-04-01")
 
     def test_formatting_formatted_data(self):
         # Formatting data that's already been formatted should fail
@@ -164,8 +156,7 @@ class TestPreparingDataForTraining(unittest.TestCase):
     def setUp(self):
         self.example_data = download_data(tickers = ["GME", "TSLA"],
                                           from_date = "2021-03-01",
-                                          to_date = "2021-04-01",
-                                          silent = True)
+                                          to_date = "2021-04-01")
         self.formatted_data = format_into_percentages(self.example_data,
                                                       "daily close")
         self.adjusted_data = adjust_for_volatility(self.example_data,
