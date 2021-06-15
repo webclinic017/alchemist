@@ -1,7 +1,9 @@
+import os
 import math
 import unittest
 import pandas as pd
 from alchemist.data.ticker_data import *
+from alchemist.data.data_utils import save_data
 
 
 class TestDataScraping(unittest.TestCase):
@@ -47,6 +49,80 @@ class TestDataScraping(unittest.TestCase):
         self.assertAlmostEqual(gme_data["High"]["2021-04-01"], 197, 0)
         self.assertAlmostEqual(gme_data["Low"]["2021-03-18"], 196, 0)
         self.assertAlmostEqual(gme_data["Close"]["2021-03-01"], 120, 0)
+
+    def test_providing_non_string_date_formats(self):
+        # To avoid formatting 50 times, and because sometimes we work with
+        # dates as datetime objects rather than strings, download_data
+        # must at least accept datetime objects as dates
+        date = datetime.datetime.fromisoformat("2021-04-01")
+        data = download_data(["GME"], date = date)
+        gme_data = data["Data"]["GME"]
+        self.assertAlmostEqual(gme_data["High"]["2021-04-01"], 197, 0)
+
+class TestDataConditionalLoading(unittest.TestCase):
+    # get_data only downloads data if it isn't available in the saved file
+    # This is useful if we want to access a lot of data, or have no wifi
+    
+    def test_get_data(self):
+        # Test that save files are created, and that data is downloaded
+        path = "cache/tests/test_get_data"
+        if os.path.isfile(path):
+            os.remove(path)
+        data = get_data(tickers = ["GME"], date = "2021-04-01", fname = path)
+        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-01"], 193, 0)
+        self.assertTrue(os.path.isfile(path))
+        # Now change and save the data; get_data should now return this
+        data["Data"]["GME"].loc["2021-04-01", "Open"] = 100
+        save_data(data, path)
+        data = get_data(tickers = ["GME"], date = "2021-04-01", fname = path)
+        self.assertEqual(data["Data"]["GME"]["Open"]["2021-04-01"], 100)
+
+    def test_update_incomplete_data(self):
+        path = "cache/tests/test_update_incomplete_data"
+        if os.path.isfile(path):
+            os.remove(path)
+        get_data(tickers = ["GME"], date = "2021-04-14", fname = path)
+        data = get_data(tickers = ["GME"], date = "2021-04-15", fname = path)
+        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-14"], 144, 0)
+        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-15"], 163, 0) # 193 is wrong, fix
+        
+    def test_only_download_needed_data(self):
+        path = "cache/tests/test_partially_download_data"
+        if os.path.isfile(path):
+            os.remove(path)
+        old_data = get_data(tickers = ["GME"], date = "2021-04-14", fname = path)
+        old_data["Data"]["GME"].loc["2021-04-14", "Open"] = 100
+        save_data(old_data, path)
+        data = get_data(tickers = ["GME"], from_date = "2021-04-13", 
+                        to_date = "2021-04-15", fname = path)
+        self.assertEqual(data["Data"]["GME"]["Open"]["2021-04-14"], 100)
+        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-13"], 142, 0) # 193 is wrong, fix
+        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-15"], 163, 0) # 193 is wrong, fix
+
+    def test_getting_data_for_new_ticker(self):
+        pass
+    # def test_download_patchy_data(self):
+        # path = "cache/tests/test_update_patchy_data"
+        # if os.path.isfile(path):
+            # os.remove(path)
+        # get_data(tickers = ["GME"], date = "2021-04-02", fname = path)
+        # get_data(tickers = ["GME"], date = "2021-04-04", fname = path)
+        # data = get_data(tickers = ["GME"], from_date = "2021-04-01", 
+                        # to_date = "2021-04-05", fname = path)
+        # # This data is between the two bits of data downloaded and saved first
+        # self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-03"], 193, 0) # 193 is wrong, fix
+
+    def test_get_data_backup(self):
+        path = "cache/tests/test_backup_get_data"
+        if os.path.isfile(path): os.remove(path)
+        if os.path.isfile(path + "_backup"): os.remove(path + "_backup")
+        get_data(tickers = ["GME"], date = "2021-04-01", fname = path,
+                 backup = True)
+        self.assertTrue(os.path.isfile(path + "_backup"))
+        # Retrieving from backup etc. should just be handled by load_data
+
+    # TODO: A bunch more tests are needed!
+
 
 class TestDataFormatting(unittest.TestCase):
     def setUp(self):
@@ -230,6 +306,7 @@ class TestPreparingDataForTraining(unittest.TestCase):
         self.assertAlmostEqual(train_l / 0.7, test_l / 0.3, -1)
         train_datapoint = train_ds.x_data[0]
         self.assertNotIn(train_datapoint, test_ds.x_data)
+
 
 if __name__ == '__main__':
     unittest.main()

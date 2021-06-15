@@ -7,6 +7,7 @@ import yfinance as yf
 from copy import deepcopy
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
+from alchemist.data.data_utils import *
 
 
 def download_data(tickers, date = None, from_date = None, to_date = None):
@@ -14,7 +15,10 @@ def download_data(tickers, date = None, from_date = None, to_date = None):
         from_date = date
         to_date = date
     # Add 1 day to the to_date for inclusivity
-    to_date = datetime.datetime.fromisoformat(to_date) + datetime.timedelta(days=1)
+    if type(to_date) == str:
+        to_date = datetime.datetime.fromisoformat(to_date)
+    to_date += datetime.timedelta(days=1)
+    # Download data, silently
     with contextlib.redirect_stdout(io.StringIO()):
         raw_data = yf.download(tickers, start = from_date, end = to_date)
     no_duplicate_data = raw_data[~raw_data.index.duplicated(keep='first')]
@@ -34,6 +38,58 @@ def download_data(tickers, date = None, from_date = None, to_date = None):
 
     return rearranged_data
 
+def get_data(fname, tickers, date = None, from_date = None, to_date = None,
+             backup = False):
+    if date != None:
+        from_date = date
+        to_date = date
+    try:
+        data = load_data(fname)
+        # Check that the data matches the dates needed;
+        # date_list = pd.date_range(from_date, to_date)
+        # print(date_list)
+        for ticker in tickers:
+            try:
+                index_list = list(data["Data"][ticker].index)
+                # print(list(date_list)[0] in list(stock_data.index))
+                stored_from_date = index_list[0]
+                stored_to_date = index_list[-1]
+                from_date = datetime.datetime.fromisoformat(from_date)
+                to_date = datetime.datetime.fromisoformat(to_date)
+                need_before = (False if (from_date - stored_from_date).days >= 0 
+                                     else True)
+                need_after = (False if (to_date -  stored_to_date).days <= 0 
+                                     else True)
+                if need_before:
+                    before_data = download_data([ticker], from_date = from_date,
+                                                to_date = stored_from_date)
+                    before_data["Data"][ticker] = after_data["Data"][ticker].iloc[2:]
+                    data["Data"][ticker] = pd.concat([before_data["Data"][ticker], 
+                                                     data["Data"][ticker]])
+                if need_after:
+                    after_data = download_data([ticker], from_date = stored_to_date,
+                                                to_date = to_date)
+                    after_data["Data"][ticker] = after_data["Data"][ticker].iloc[2:]
+                    data["Data"][ticker] = pd.concat([data["Data"][ticker], 
+                                                     after_data["Data"][ticker]])
+
+                # Save the data
+                save_data(data, fname, backup = backup)
+
+            except IndexError:
+                return
+                # total_ticker_data = #TODO: Download and insert the data
+            # Download missing data for the stock
+            # print(stored_from_date, from_date)
+            # print(stored_to_date, to_date)
+            # print(need_before, need_after)
+    except FileNotFoundError:
+        # If no save file exists, download new data
+        data = download_data(tickers = tickers, from_date = from_date, 
+                             to_date = to_date)
+        save_data(data, fname, backup = backup)
+
+    return data
 
 def format_into_percentages(data, formatting_basis = "first open"):
     # Do not format already formtted data
