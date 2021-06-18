@@ -5,6 +5,7 @@ import contextlib
 import pandas as pd
 import yfinance as yf
 from copy import deepcopy
+from datetime import datetime as dt
 from torch.utils.data import Dataset
 from sklearn.model_selection import train_test_split
 from alchemist.data.data_utils import *
@@ -16,7 +17,7 @@ def download_data(tickers, date = None, from_date = None, to_date = None):
         to_date = date
     # Add 1 day to the to_date for inclusivity
     if type(to_date) == str:
-        to_date = datetime.datetime.fromisoformat(to_date)
+        to_date = dt.fromisoformat(to_date)
     to_date += datetime.timedelta(days=1)
     # Download data, silently
     with contextlib.redirect_stdout(io.StringIO()):
@@ -38,11 +39,17 @@ def download_data(tickers, date = None, from_date = None, to_date = None):
 
     return rearranged_data
 
+
 def get_data(fname, tickers, date = None, from_date = None, to_date = None,
              backup = False):
     if date != None:
         from_date = date
         to_date = date
+        # A slightly hacky fix, but shouldn't break anything
+        if type(to_date) == str:
+            to_date = dt.fromisoformat(to_date)
+        to_date += datetime.timedelta(days=1)
+
     try:
         data = load_data(fname)
         # Check that the data matches the dates needed;
@@ -51,38 +58,28 @@ def get_data(fname, tickers, date = None, from_date = None, to_date = None,
         for ticker in tickers:
             try:
                 index_list = list(data["Data"][ticker].index)
-                # print(list(date_list)[0] in list(stock_data.index))
-                stored_from_date = index_list[0]
-                stored_to_date = index_list[-1]
-                from_date = datetime.datetime.fromisoformat(from_date)
-                to_date = datetime.datetime.fromisoformat(to_date)
-                need_before = (False if (from_date - stored_from_date).days >= 0 
-                                     else True)
-                need_after = (False if (to_date -  stored_to_date).days <= 0 
-                                     else True)
-                if need_before:
+                # Download data after the stored date if needed
+                from_date, s_from_date = squeeze_dates(from_date, index_list[0])
+                if from_date != None:
                     before_data = download_data([ticker], from_date = from_date,
-                                                to_date = stored_from_date)
+                                                to_date = s_from_date)
                     before_data["Data"][ticker] = after_data["Data"][ticker].iloc[2:]
                     data["Data"][ticker] = pd.concat([before_data["Data"][ticker], 
                                                      data["Data"][ticker]])
-                if need_after:
-                    after_data = download_data([ticker], from_date = stored_to_date,
-                                                to_date = to_date)
+                # Download data before the stored date if needed
+                s_to_date, to_date = squeeze_dates(index_list[-1], to_date)
+                if to_date != None:
+                    after_data = download_data([ticker], from_date = s_to_date,
+                                               to_date = to_date)
                     after_data["Data"][ticker] = after_data["Data"][ticker].iloc[2:]
                     data["Data"][ticker] = pd.concat([data["Data"][ticker], 
                                                      after_data["Data"][ticker]])
+            except KeyError:
+                data["Data"][ticker] = download_data([ticker], from_date, 
+                        to_date)["Data"][ticker]
+        # Save the data
+        save_data(data, fname, backup = backup)
 
-                # Save the data
-                save_data(data, fname, backup = backup)
-
-            except IndexError:
-                return
-                # total_ticker_data = #TODO: Download and insert the data
-            # Download missing data for the stock
-            # print(stored_from_date, from_date)
-            # print(stored_to_date, to_date)
-            # print(need_before, need_after)
     except FileNotFoundError:
         # If no save file exists, download new data
         data = download_data(tickers = tickers, from_date = from_date, 
@@ -90,6 +87,7 @@ def get_data(fname, tickers, date = None, from_date = None, to_date = None,
         save_data(data, fname, backup = backup)
 
     return data
+
 
 def format_into_percentages(data, formatting_basis = "first open"):
     # Do not format already formtted data
@@ -147,6 +145,7 @@ def format_into_percentages(data, formatting_basis = "first open"):
 
     return formatted_data
 
+
 def adjust_for_volatility(data, volatility_type = "global v"):
     if "v adjusted" in data["Formatting"]:
         raise Exception("The volatility of this data has already been adjusted")
@@ -182,6 +181,7 @@ def adjust_for_volatility(data, volatility_type = "global v"):
 
     return adjusted_data
 
+
 def format_into_xy(data, label_var = "Close", num_features = 1, label_type = "float",
                    label_type_vars = {}):
     x_data = []
@@ -204,6 +204,7 @@ def format_into_xy(data, label_var = "Close", num_features = 1, label_type = "fl
 
     return x_data, y_data
 
+
 class TickerDataset (Dataset):
     # TickerDataset interacts correctly with data_loader
     def __init__(self, x_data, y_data):
@@ -218,6 +219,7 @@ class TickerDataset (Dataset):
     def __len__(self):
         return self.length
 
+
 # Returns a train and test TickerDataset; feels a bit wrong because
 # it acts kinda like a class constructor, but should be fine really
 def train_test_datasets(x_data, y_data, train_size = 0.8):
@@ -226,4 +228,26 @@ def train_test_datasets(x_data, y_data, train_size = 0.8):
     train_dataset = TickerDataset(x_train, y_train)
     test_dataset = TickerDataset(x_test, y_test)
     return train_dataset, test_dataset
+
+
+def squeeze_dates(from_date, to_date):
+    # NOTE: These are NASDAQ holidays, last updated 2021-06-18
+    holidays = ["01-01", "01-18", "02-15", "04-02", "05-31",
+                "07-05", "08-06", "11-25", "12-24"]
+    
+    if type(from_date) == str:
+        from_date = dt.fromisoformat(from_date)
+    if type(to_date) == str:
+        to_date = dt.fromisoformat(to_date)
+
+    while from_date.weekday() > 4 or str(from_date)[5:10] in holidays:
+        from_date += datetime.timedelta(days = 1)
+    while to_date.weekday() > 4 or str(to_date)[5:10] in holidays:
+        to_date -= datetime.timedelta(days = 1)
+
+    if (to_date - from_date).days <= 0:
+        return None, None
+
+    return from_date, to_date
+
 

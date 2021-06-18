@@ -2,8 +2,9 @@ import os
 import math
 import unittest
 import pandas as pd
+import pytest_socket
 from alchemist.data.ticker_data import *
-from alchemist.data.data_utils import save_data
+# pytest_socket.SocketBlockedError = Exception
 
 
 class TestDataScraping(unittest.TestCase):
@@ -59,6 +60,17 @@ class TestDataScraping(unittest.TestCase):
         gme_data = data["Data"]["GME"]
         self.assertAlmostEqual(gme_data["High"]["2021-04-01"], 197, 0)
 
+    def test_downloading_weekend_data(self):
+        downloaded_data = download_data(tickers = ["GME"], date = "2021-05-30")
+        gme_data = downloaded_data["Data"]["GME"]
+        self.assertEqual(type(gme_data), pd.core.frame.DataFrame)
+        self.assertEqual(len(gme_data.index), 0)
+
+    # NOTE: There's nothing that explicitly handles weekends and holidays;
+    # they should just give an empty/nearly empty dataframe, which should be
+    # handled fine by the rest of the code.
+
+
 class TestDataConditionalLoading(unittest.TestCase):
     # get_data only downloads data if it isn't available in the saved file
     # This is useful if we want to access a lot of data, or have no wifi
@@ -84,7 +96,7 @@ class TestDataConditionalLoading(unittest.TestCase):
         get_data(tickers = ["GME"], date = "2021-04-14", fname = path)
         data = get_data(tickers = ["GME"], date = "2021-04-15", fname = path)
         self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-14"], 144, 0)
-        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-15"], 163, 0) # 193 is wrong, fix
+        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-15"], 163, 0)
         
     def test_only_download_needed_data(self):
         path = "cache/tests/test_partially_download_data"
@@ -96,21 +108,44 @@ class TestDataConditionalLoading(unittest.TestCase):
         data = get_data(tickers = ["GME"], from_date = "2021-04-13", 
                         to_date = "2021-04-15", fname = path)
         self.assertEqual(data["Data"]["GME"]["Open"]["2021-04-14"], 100)
-        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-13"], 142, 0) # 193 is wrong, fix
-        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-15"], 163, 0) # 193 is wrong, fix
+        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-13"], 142, 0)
+        self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-15"], 163, 0)
+
+    def test_get_data_with_weekend_time(self):
+        path = "cache/tests/test_partially_download_data"
+        if os.path.isfile(path):
+            os.remove(path)
+        d1 = get_data(path, ["GME"], from_date = "2021-03-29", to_date = "2021-04-01")
+        # 2021-04-02 and -03 is a weekend, so no data needs to be downloaded
+        # NOTE: as yfinance is multithreaded, this failing actually crashes the code,
+        # and doesn't give a nice error message
+        pytest_socket.disable_socket()
+        d2 = get_data(path, ["GME"], from_date = "2021-03-29", to_date = "2021-04-03")
+        pytest_socket.enable_socket()
+        self.assertListEqual(list(d1["Data"]["GME"].index), list(d2["Data"]["GME"].index))
+
+    def test_squeeze_date_range(self):
+        # chops off ends of date ranges if they include holidays or weekends
+        from_date = "2021-01-01"
+        to_date = "2021-02-07"
+        new_from, new_to = squeeze_dates(from_date, to_date)
+        new_from = str(new_from)[:10]
+        new_to = str(new_to)[:10]
+        self.assertEqual(new_from, "2021-01-04")
+        self.assertEqual(new_to, "2021-02-05")
+        # The dates can be squeezed to nothing
+        from_date = "2021-01-01"
+        to_date = "2021-01-03"
+        new_from, new_to = squeeze_dates(from_date, to_date)
+        self.assertIsNone(new_from)
+        self.assertIsNone(new_to)
 
     def test_getting_data_for_new_ticker(self):
-        pass
-    # def test_download_patchy_data(self):
-        # path = "cache/tests/test_update_patchy_data"
-        # if os.path.isfile(path):
-            # os.remove(path)
-        # get_data(tickers = ["GME"], date = "2021-04-02", fname = path)
-        # get_data(tickers = ["GME"], date = "2021-04-04", fname = path)
-        # data = get_data(tickers = ["GME"], from_date = "2021-04-01", 
-                        # to_date = "2021-04-05", fname = path)
-        # # This data is between the two bits of data downloaded and saved first
-        # self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-03"], 193, 0) # 193 is wrong, fix
+        path = "cache/tests/test_get_data_unknown_ticker"
+        get_data(fname = path, tickers = ["TSLA"], date = "2021-04-01")
+        data = get_data(fname = path, tickers = ["GME"], date = "2021-04-01")
+        gme_data = data["Data"]["GME"]
+        self.assertAlmostEqual(gme_data["High"]["2021-04-01"], 197, 0)
 
     def test_get_data_backup(self):
         path = "cache/tests/test_backup_get_data"
@@ -121,7 +156,9 @@ class TestDataConditionalLoading(unittest.TestCase):
         self.assertTrue(os.path.isfile(path + "_backup"))
         # Retrieving from backup etc. should just be handled by load_data
 
-    # TODO: A bunch more tests are needed!
+    # NOTE: get_data isn't perfect, and should not be used to store any and
+    # all data in one file, especially if you need small patched of data
+    # all over the place. With one data file per purpose, it should be fine.
 
 
 class TestDataFormatting(unittest.TestCase):
@@ -237,7 +274,6 @@ class TestPreparingDataForTraining(unittest.TestCase):
                                                       "daily close")
         self.adjusted_data = adjust_for_volatility(self.example_data,
                                                    "global v")
-
 
     def assertXYCorrespondance(self, x_value, y_value, x_data, y_data):
         # As this is used a bunch, it's nice to put it into its own function
