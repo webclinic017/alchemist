@@ -80,21 +80,21 @@ class TestDataConditionalLoading(unittest.TestCase):
         path = "cache/tests/test_get_data"
         if os.path.isfile(path):
             os.remove(path)
-        data = get_data(tickers = ["GME"], date = "2021-04-01", fname = path)
+        data = get_data(tickers = ["GME"], date = "2021-04-01", path = path)
         self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-01"], 193, 0)
         self.assertTrue(os.path.isfile(path))
         # Now change and save the data; get_data should now return this
         data["Data"]["GME"].loc["2021-04-01", "Open"] = 100
         save_data(data, path)
-        data = get_data(tickers = ["GME"], date = "2021-04-01", fname = path)
+        data = get_data(tickers = ["GME"], date = "2021-04-01", path = path)
         self.assertEqual(data["Data"]["GME"]["Open"]["2021-04-01"], 100)
 
     def test_update_incomplete_data(self):
         path = "cache/tests/test_update_incomplete_data"
         if os.path.isfile(path):
             os.remove(path)
-        get_data(tickers = ["GME"], date = "2021-04-14", fname = path)
-        data = get_data(tickers = ["GME"], date = "2021-04-15", fname = path)
+        get_data(tickers = ["GME"], date = "2021-04-14", path = path)
+        data = get_data(tickers = ["GME"], date = "2021-04-15", path = path)
         self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-14"], 144, 0)
         self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-15"], 163, 0)
         
@@ -102,11 +102,11 @@ class TestDataConditionalLoading(unittest.TestCase):
         path = "cache/tests/test_partially_download_data"
         if os.path.isfile(path):
             os.remove(path)
-        old_data = get_data(tickers = ["GME"], date = "2021-04-14", fname = path)
+        old_data = get_data(tickers = ["GME"], date = "2021-04-14", path = path)
         old_data["Data"]["GME"].loc["2021-04-14", "Open"] = 100
         save_data(old_data, path)
         data = get_data(tickers = ["GME"], from_date = "2021-04-13", 
-                        to_date = "2021-04-15", fname = path)
+                        to_date = "2021-04-15", path = path)
         self.assertEqual(data["Data"]["GME"]["Open"]["2021-04-14"], 100)
         self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-13"], 142, 0)
         self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-15"], 163, 0)
@@ -142,8 +142,10 @@ class TestDataConditionalLoading(unittest.TestCase):
 
     def test_getting_data_for_new_ticker(self):
         path = "cache/tests/test_get_data_unknown_ticker"
-        get_data(fname = path, tickers = ["TSLA"], date = "2021-04-01")
-        data = get_data(fname = path, tickers = ["GME"], date = "2021-04-01")
+        if os.path.isfile(path):
+            os.remove(path)
+        get_data(path = path, tickers = ["TSLA"], date = "2021-04-01")
+        data = get_data(path = path, tickers = ["GME"], date = "2021-04-01")
         gme_data = data["Data"]["GME"]
         self.assertAlmostEqual(gme_data["High"]["2021-04-01"], 197, 0)
 
@@ -151,10 +153,49 @@ class TestDataConditionalLoading(unittest.TestCase):
         path = "cache/tests/test_backup_get_data"
         if os.path.isfile(path): os.remove(path)
         if os.path.isfile(path + "_backup"): os.remove(path + "_backup")
-        get_data(tickers = ["GME"], date = "2021-04-01", fname = path,
+        get_data(tickers = ["GME"], date = "2021-04-01", path = path,
                  backup = True)
         self.assertTrue(os.path.isfile(path + "_backup"))
         # Retrieving from backup etc. should just be handled by load_data
+
+    def test_not_needing_to_download_data(self):
+        path = "cache/tests/test_not_downloading_data"
+        if os.path.isfile(path):
+            os.remove(path)
+        data = get_data(path = path, tickers = ["GME"],
+                        from_date = "2021-03-13", to_date = "2021-04-13")
+        gme_data = data["Data"]["GME"]
+        self.assertAlmostEqual(gme_data["High"]["2021-04-01"], 197, 0)
+        # Just repeating the thing should work perfectly fine
+        pytest_socket.disable_socket()
+        data = get_data(path = path, tickers = ["GME"],
+                        from_date = "2021-03-13", to_date = "2021-04-13")
+        pytest_socket.enable_socket()
+        gme_data = data["Data"]["GME"]
+        self.assertAlmostEqual(gme_data["High"]["2021-04-01"], 197, 0)
+
+    def test_getting_multiple_ticker_data(self):
+        path = "cache/tests/test_get_multiple_ticker_data"
+        if os.path.isfile(path):
+            os.remove(path)
+        data = get_data(path = path, tickers = ["GME", "TSLA"],
+                        from_date = "2021-03-13", to_date = "2021-04-13")
+        gme_data = data["Data"]["GME"]
+        tsla_data = data["Data"]["TSLA"]
+        self.assertEqual(math.floor(gme_data["Open"]["2021-04-01"]), 193)
+        self.assertEqual(math.floor(gme_data["High"]["2021-04-01"]), 196)
+        self.assertEqual(math.floor(tsla_data["Open"]["2021-04-01"]), 688)
+        self.assertEqual(math.floor(tsla_data["High"]["2021-04-01"]), 692)
+        # Secong time should require no download and work fine
+        pytest_socket.disable_socket()
+        data = get_data(path = path, tickers = ["GME", "TSLA"],
+                        from_date = "2021-03-13", to_date = "2021-04-13")
+        pytest_socket.enable_socket()
+        gme_data = data["Data"]["GME"]
+        tsla_data = data["Data"]["TSLA"]
+        self.assertEqual(math.floor(gme_data["High"]["2021-04-01"]), 196)
+        self.assertEqual(math.floor(tsla_data["Open"]["2021-04-01"]), 688)
+
 
     # NOTE: get_data isn't perfect, and should not be used to store any and
     # all data in one file, especially if you need small patched of data
@@ -287,6 +328,8 @@ class TestPreparingDataForTraining(unittest.TestCase):
         # With jsut a single input vector
         x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
                                         label_var = "Close")
+        # Empty values mess things up, there shouldn't be any
+        self.assertNotIn([], x_data)
         # The full data for GME 2021-03-12
         x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615, 
                     1.0087307269756611, 1.0576923076923077, 0.9128794701986755]]

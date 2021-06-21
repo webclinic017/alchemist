@@ -40,7 +40,7 @@ def download_data(tickers, date = None, from_date = None, to_date = None):
     return rearranged_data
 
 
-def get_data(fname, tickers, date = None, from_date = None, to_date = None,
+def get_data(path, tickers, date = None, from_date = None, to_date = None,
              backup = False):
     if date != None:
         from_date = date
@@ -51,26 +51,25 @@ def get_data(fname, tickers, date = None, from_date = None, to_date = None,
         to_date += datetime.timedelta(days=1)
 
     try:
-        data = load_data(fname)
+        data = load_data(path)
         # Check that the data matches the dates needed;
-        # date_list = pd.date_range(from_date, to_date)
-        # print(date_list)
         for ticker in tickers:
             try:
                 index_list = list(data["Data"][ticker].index)
                 # Download data after the stored date if needed
-                from_date, s_from_date = squeeze_dates(from_date, index_list[0])
-                if from_date != None:
-                    before_data = download_data([ticker], from_date = from_date,
-                                                to_date = s_from_date)
+                # NOTE: from_date and to_date must be unchanged for multiple tickers
+                f_date, sf_date = squeeze_dates(from_date, index_list[0])
+                if f_date != None:
+                    before_data = download_data([ticker], from_date = f_date,
+                                                to_date = sf_date)
                     before_data["Data"][ticker] = after_data["Data"][ticker].iloc[2:]
                     data["Data"][ticker] = pd.concat([before_data["Data"][ticker], 
                                                      data["Data"][ticker]])
                 # Download data before the stored date if needed
-                s_to_date, to_date = squeeze_dates(index_list[-1], to_date)
-                if to_date != None:
-                    after_data = download_data([ticker], from_date = s_to_date,
-                                               to_date = to_date)
+                st_date, t_date = squeeze_dates(index_list[-1], to_date)
+                if t_date != None:
+                    after_data = download_data([ticker], from_date = st_date,
+                                               to_date = t_date)
                     after_data["Data"][ticker] = after_data["Data"][ticker].iloc[2:]
                     data["Data"][ticker] = pd.concat([data["Data"][ticker], 
                                                      after_data["Data"][ticker]])
@@ -78,13 +77,13 @@ def get_data(fname, tickers, date = None, from_date = None, to_date = None,
                 data["Data"][ticker] = download_data([ticker], from_date, 
                         to_date)["Data"][ticker]
         # Save the data
-        save_data(data, fname, backup = backup)
+        save_data(data, path, backup = backup)
 
     except FileNotFoundError:
         # If no save file exists, download new data
         data = download_data(tickers = tickers, from_date = from_date, 
                              to_date = to_date)
-        save_data(data, fname, backup = backup)
+        save_data(data, path, backup = backup)
 
     return data
 
@@ -202,6 +201,12 @@ def format_into_xy(data, label_var = "Close", num_features = 1, label_type = "fl
         for i in range(len(y_data)):
             y_data[i] = 1 if y_data[i] >= divider else 0
 
+    # Remove empty values
+    while [] in x_data:
+        i = x_data.index([])
+        del y_data[i]
+        x_data.remove([])
+
     return x_data, y_data
 
 
@@ -239,6 +244,8 @@ def squeeze_dates(from_date, to_date):
         from_date = dt.fromisoformat(from_date)
     if type(to_date) == str:
         to_date = dt.fromisoformat(to_date)
+    
+    # print(from_date, to_date)
 
     while from_date.weekday() > 4 or str(from_date)[5:10] in holidays:
         from_date += datetime.timedelta(days = 1)
