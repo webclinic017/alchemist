@@ -2,6 +2,7 @@ import io
 import pickle
 import datetime
 import contextlib
+import numpy as np
 import pandas as pd
 import yfinance as yf
 from copy import deepcopy
@@ -182,7 +183,7 @@ def adjust_for_volatility(data, volatility_type = "global v"):
 
 
 def format_into_xy(data, label_var = "Close", num_features = 1, label_type = "float",
-                   label_type_vars = {}):
+        label_type_vars = {"divider" : 0, "balance" : False}):
     x_data = []
     y_data = []
 
@@ -194,19 +195,31 @@ def format_into_xy(data, label_var = "Close", num_features = 1, label_type = "fl
             ].values])
             y_data.append(df.loc[df.index[date_index], [label_var]].values[0])
 
-    # Labels may need to be changed for classification etc.
-    if label_type == "bin":
-        # "bin" for binary classification
-        divider = label_type_vars["divider"]
-        for i in range(len(y_data)):
-            y_data[i] = 1 if y_data[i] >= divider else 0
-
     # Remove empty values
     while [] in x_data:
         i = x_data.index([])
         del y_data[i]
         x_data.remove([])
 
+    # Labels may need to be changed for classification etc.
+    # TODO: Storing label vars in a dict like this may be inadvisable, maybe fix
+    if label_type == "bin":
+        # "bin" for binary classification
+        divider = label_type_vars["divider"]
+        for i in range(len(y_data)):
+            y_data[i] = 1 if y_data[i] >= divider else 0
+        try: balance = label_type_vars["balance"]
+        except: balance = False
+        if balance:
+            while y_data.count(1) > y_data.count(0):
+                bad_index = y_data.index(1)
+                y_data.pop(bad_index)
+                x_data.pop(bad_index)
+            while y_data.count(1) < y_data.count(0):
+                bad_index = y_data.index(0)
+                y_data.pop(bad_index)
+                x_data.pop(bad_index)
+    
     return x_data, y_data
 
 
@@ -219,7 +232,7 @@ class TickerDataset (Dataset):
         self.length = len(self.x_data)
 
     def __getitem__(self, index):
-        return self.x_data[index], self.y_data[index]
+        return np.array([self.x_data[index]]), self.y_data[index]
 
     def __len__(self):
         return self.length

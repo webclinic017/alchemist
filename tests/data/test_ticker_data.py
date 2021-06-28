@@ -360,6 +360,15 @@ class TestPreparingDataForTraining(unittest.TestCase):
         y_value = 0
         self.assertXYCorrespondance(x_value, y_value, x_data, y_data)
 
+    def test_formatting_into_balanced_xy(self):
+        label_vars = {"divider" : 1, "balance" : True}
+        x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
+                                        label_var = "Close", label_type = "bin",
+                                        label_type_vars = label_vars)
+        self.assertEqual(y_data.count(0), y_data.count(1))
+        
+
+
     def test_formatting_into_dataset(self):
         x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
                                         label_var = "Close")
