@@ -66,6 +66,15 @@ class TestDataScraping(unittest.TestCase):
         self.assertEqual(type(gme_data), pd.core.frame.DataFrame)
         self.assertEqual(len(gme_data.index), 0)
 
+    def test_not_download_nan_data(self):
+        downloaded_data = download_data(tickers = ["FB"], from_date = "2012-01-01",
+                                          to_date = "2013-01-01")
+        self.assertFalse(downloaded_data["Data"]["FB"].isnull().values.any())
+        # Acts differently with several tickers
+        downloaded_data = download_data(tickers = ["GOOG", "FB"], from_date = "2012-01-01",
+                                          to_date = "2013-01-01")
+        self.assertFalse(downloaded_data["Data"]["FB"].isnull().values.any())
+
     # NOTE: There's nothing that explicitly handles weekends and holidays;
     # they should just give an empty/nearly empty dataframe, which should be
     # handled fine by the rest of the code.
@@ -123,6 +132,35 @@ class TestDataConditionalLoading(unittest.TestCase):
         d2 = get_data(path, ["GME"], from_date = "2021-03-29", to_date = "2021-04-03")
         pytest_socket.enable_socket()
         self.assertListEqual(list(d1["Data"]["GME"].index), list(d2["Data"]["GME"].index))
+
+    def test_not_getting_nan_data(self):
+        path = "cache/tests/test_not_get_nan_data"
+        if os.path.isfile(path): os.remove(path)
+        data = get_data(path = path, tickers = ["GOOG", "FB"], 
+                        from_date = "2012-01-01", to_date = "2013-01-01")
+        self.assertFalse(data["Data"]["FB"].isnull().values.any())
+
+    def test_only_get_required_data(self):
+        path = "cache/tests/test_only_get_required_data"
+        if os.path.isfile(path): os.remove(path)
+        data = get_data(path = path, tickers = ["GOOG", "FB", "AMZN"], 
+                        from_date = "2012-01-01", to_date = "2013-01-01")
+        new_data = get_data(path = path, tickers = ["GOOG"], 
+                            from_date = "2012-05-01", to_date = "2012-09-01")
+        self.assertNotIn("FB", new_data["Data"].keys())
+        self.assertNotIn("AMZN", new_data["Data"].keys())
+        self.assertNotIn("2012-02-02", new_data["Data"]["GOOG"].index)
+        self.assertNotIn("2012-11-11", new_data["Data"]["GOOG"].index)
+
+    def test_dont_download_when_less_data_needed(self):
+        path = "cache/tests/test_dont_donwload_when_less_data_needed"
+        if os.path.isfile(path): os.remove(path)
+        data = get_data(path = path, tickers = ["GOOG", "AMZN"], 
+                        from_date = "2012-01-01", to_date = "2013-01-01")
+        pytest_socket.disable_socket()
+        new_data = get_data(path = path, tickers = ["GOOG"], 
+                        from_date = "2012-02-01", to_date = "2012-07-01")
+        pytest_socket.enable_socket()
 
     def test_squeeze_date_range(self):
         # chops off ends of date ranges if they include holidays or weekends

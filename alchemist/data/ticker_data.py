@@ -23,7 +23,8 @@ def download_data(tickers, date = None, from_date = None, to_date = None):
     # Download data, silently
     with contextlib.redirect_stdout(io.StringIO()):
         raw_data = yf.download(tickers, start = from_date, end = to_date)
-    no_duplicate_data = raw_data[~raw_data.index.duplicated(keep='first')]
+    no_null_data = raw_data.dropna(how="any", axis=0)
+    no_duplicate_data = no_null_data[~no_null_data.index.duplicated(keep='first')]
     # Rearrange data into a more standardized and accessible form
     if len(tickers) == 1:
         rearranged_data = {"Data" : {tickers[0] : no_duplicate_data}}
@@ -52,41 +53,49 @@ def get_data(path, tickers, date = None, from_date = None, to_date = None,
         to_date += datetime.timedelta(days=1)
 
     try:
-        data = load_data(path)
+        loaded_data = load_data(path)
+        needed_data = {"Formatting" : loaded_data["Formatting"],
+                        "Data" : {}}
         # Check that the data matches the dates needed;
         for ticker in tickers:
             try:
-                index_list = list(data["Data"][ticker].index)
+                needed_data["Data"][ticker] = loaded_data["Data"][ticker]
+                index_list = list(needed_data["Data"][ticker].index)
                 # Download data after the stored date if needed
                 # NOTE: from_date and to_date must be unchanged for multiple tickers
                 f_date, sf_date = squeeze_dates(from_date, index_list[0])
                 if f_date != None:
                     before_data = download_data([ticker], from_date = f_date,
                                                 to_date = sf_date)
-                    before_data["Data"][ticker] = after_data["Data"][ticker].iloc[2:]
-                    data["Data"][ticker] = pd.concat([before_data["Data"][ticker], 
-                                                     data["Data"][ticker]])
+                    before_data["Data"][ticker] = before_data["Data"][ticker].iloc[2:]
+                    needed_data["Data"][ticker] = pd.concat([before_data["Data"][ticker], 
+                                                     needed_data["Data"][ticker]])
                 # Download data before the stored date if needed
                 st_date, t_date = squeeze_dates(index_list[-1], to_date)
                 if t_date != None:
                     after_data = download_data([ticker], from_date = st_date,
                                                to_date = t_date)
                     after_data["Data"][ticker] = after_data["Data"][ticker].iloc[2:]
-                    data["Data"][ticker] = pd.concat([data["Data"][ticker], 
+                    needed_data["Data"][ticker] = pd.concat([needed_data["Data"][ticker], 
                                                      after_data["Data"][ticker]])
             except KeyError:
-                data["Data"][ticker] = download_data([ticker], from_date, 
-                        to_date)["Data"][ticker]
+                needed_data["Data"][ticker] = download_data([ticker], from_date, 
+                                            to_date)["Data"][ticker]
+
+            # data["Data"][ticker] = data["Data"][ticker].dropna(how="any", axis=0)
+
         # Save the data
-        save_data(data, path, backup = backup)
+        save_data(needed_data, path, backup = backup)
 
     except FileNotFoundError:
         # If no save file exists, download new data
-        data = download_data(tickers = tickers, from_date = from_date, 
+        needed_data = download_data(tickers = tickers, from_date = from_date, 
                              to_date = to_date)
-        save_data(data, path, backup = backup)
+        save_data(needed_data, path, backup = backup)
 
-    return data
+    # data = data["Data"].pop(t for t in data["Data"].keys() not in tickers)
+
+    return needed_data
 
 
 def format_into_percentages(data, formatting_basis = "first open"):
