@@ -2,10 +2,11 @@ import os
 import math
 import warnings
 import torch as T
+import numpy as np
+import pandas as pd
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as F
-import numpy as np
 
 class Agent(nn.Module):
 
@@ -146,7 +147,7 @@ class Agent(nn.Module):
                 ep_loss += loss.item()
                 ep_acc.append(acc.item())
                 # +++                                +++
-            acc_history.append(ep_acc)
+            acc_history.append(np.mean(ep_acc))
             loss_history.append(ep_loss)
 
             # NOTE: "verbose" needs better implementation
@@ -154,16 +155,19 @@ class Agent(nn.Module):
                               " total loss % .3f" % ep_loss,
                               " accuracy %.3f" % np.mean(ep_acc))
 
-        return acc_history, loss_history
+        train_hist = pd.DataFrame({"epoch" : range(1, epochs + 1),
+                                   "acc" : acc_history,
+                                   "loss" : loss_history})
+        return train_hist
 
-    def _test(self, epochs = 5):
+    def _test(self, epochs = 5, verbose = False):
         # Makes sure there isn't any random variation, as in training
         self.eval()
         # Clear history for documentation
         loss_history = []
         acc_history = []
 
-        for i in range(epochs):
+        for ep in range(epochs):
             ep_loss = 0
             ep_acc = []
             for j, (input, label) in enumerate(self.test_data_loader):
@@ -207,13 +211,17 @@ class Agent(nn.Module):
 
                 ep_loss += loss.item()
                 ep_acc.append(acc.item())
-                acc_history.append(acc.item())
+            acc_history.append(np.mean(ep_acc))
             loss_history.append(ep_loss)
                 # +++                +++
 
+            # NOTE: "verbose" needs better implementation
+            if verbose: print("Finished epoch", ep, 
+                              " total loss % .3f" % ep_loss,
+                              " accuracy %.3f" % np.mean(ep_acc))
             # print("Finished epoch", i, " total loss % .3f" % ep_loss,
                     # "accuracy %.3f" % np.mean(ep_acc))
-        return acc_history, loss_history
+        return np.mean(acc_history), np.mean(loss_history)
 
 
 

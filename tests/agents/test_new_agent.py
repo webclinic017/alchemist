@@ -17,7 +17,7 @@ from alchemist.agents.new_agent import *
 class TestAgentCreation(unittest.TestCase):
 
     def setUp(self):
-        data = get_data(path = "cache/tests/TestAgentCreation", tickers = ["GME", "TSLA"], 
+        data = get_data(path = "cache/tests/data/TestAgentCreation", tickers = ["GME", "TSLA"], 
                         from_date = "2021-03-01", to_date = "2021-04-01")
         data = format_into_percentages(data, formatting_basis = "daily open")
         x, y = format_into_xy(data, num_features = 3)
@@ -92,21 +92,26 @@ class TestAgentFunctionality(unittest.TestCase):
 
     def test_train(self):
         # Run the train function
-        acc_h, loss_h = self.agent._train(epochs = 5)
+        train_hist = self.agent._train(epochs = 5)
         # The acc and loss history should show improvement
+        self.assertEqual(type(train_hist), pd.DataFrame)
+        epochs = train_hist["epoch"]
+        acc_h = train_hist["acc"].values
+        loss_h = train_hist["loss"].values
         self.assertTrue(len(acc_h) > 0)
         self.assertTrue(len(loss_h) > 0)
-        self.assertEqual(np.mean(acc_h[-1]), 1)
-        self.assertAlmostEqual(np.mean(loss_h[-1]), 0, 2)
+        self.assertEqual(acc_h[-1], 1)
+        self.assertAlmostEqual(loss_h[-1], 0, 2)
 
     def test_test(self):
         # Test an untrained agent
-        acc_hu, loss_hu = self.agent._test()
+        acc1, loss1 = self.agent._test()
+        self.assertEqual(type(acc1), np.float64)
         # Test a trained agent
         self.agent._train(epochs = 5)
-        acc_ht, loss_ht = self.agent._test()
+        acc2, loss2 = self.agent._test()
         # Compare
-        self.assertTrue(np.mean(acc_ht) > np.mean(acc_hu))
-        self.assertTrue(np.mean(loss_ht) < np.mean(loss_hu))
+        self.assertTrue(acc1 < acc2)
+        self.assertTrue(loss1 > loss2)
 
 

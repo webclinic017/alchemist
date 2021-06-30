@@ -8,7 +8,7 @@ class TestDataStorage(unittest.TestCase):
     def test_load_save_data(self):
         example_data = ["never", "gonna", "give", "you", "up"]
         # Test saving
-        path = "cache/tests/test_saving_data"
+        path = "cache/tests/data/test_saving_data"
         if os.path.isfile(path):
             os.remove(path)
         self.assertFalse(os.path.isfile(path))
@@ -19,7 +19,7 @@ class TestDataStorage(unittest.TestCase):
 
     def test_data_backup(self):
         example_data = ("never", "gonna", "let", "you", "down")
-        path = "cache/tests/test_data_backup"
+        path = "cache/tests/data/test_data_backup"
         save_data(example_data, path, backup = True)
         os.remove(path)
         loaded_data = load_data(path)

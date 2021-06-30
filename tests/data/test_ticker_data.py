@@ -86,7 +86,7 @@ class TestDataConditionalLoading(unittest.TestCase):
     
     def test_get_data(self):
         # Test that save files are created, and that data is downloaded
-        path = "cache/tests/test_get_data"
+        path = "cache/tests/data/test_get_data"
         if os.path.isfile(path):
             os.remove(path)
         data = get_data(tickers = ["GME"], date = "2021-04-01", path = path)
@@ -99,7 +99,7 @@ class TestDataConditionalLoading(unittest.TestCase):
         self.assertEqual(data["Data"]["GME"]["Open"]["2021-04-01"], 100)
 
     def test_update_incomplete_data(self):
-        path = "cache/tests/test_update_incomplete_data"
+        path = "cache/tests/data/test_update_incomplete_data"
         if os.path.isfile(path):
             os.remove(path)
         get_data(tickers = ["GME"], date = "2021-04-14", path = path)
@@ -108,7 +108,7 @@ class TestDataConditionalLoading(unittest.TestCase):
         self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-15"], 163, 0)
         
     def test_only_download_needed_data(self):
-        path = "cache/tests/test_partially_download_data"
+        path = "cache/tests/data/test_partially_download_data"
         if os.path.isfile(path):
             os.remove(path)
         old_data = get_data(tickers = ["GME"], date = "2021-04-14", path = path)
@@ -121,7 +121,7 @@ class TestDataConditionalLoading(unittest.TestCase):
         self.assertAlmostEqual(data["Data"]["GME"]["Open"]["2021-04-15"], 163, 0)
 
     def test_get_data_with_weekend_time(self):
-        path = "cache/tests/test_partially_download_data"
+        path = "cache/tests/data/test_partially_download_data"
         if os.path.isfile(path):
             os.remove(path)
         d1 = get_data(path, ["GME"], from_date = "2021-03-29", to_date = "2021-04-01")
@@ -134,14 +134,14 @@ class TestDataConditionalLoading(unittest.TestCase):
         self.assertListEqual(list(d1["Data"]["GME"].index), list(d2["Data"]["GME"].index))
 
     def test_not_getting_nan_data(self):
-        path = "cache/tests/test_not_get_nan_data"
+        path = "cache/tests/data/test_not_get_nan_data"
         if os.path.isfile(path): os.remove(path)
         data = get_data(path = path, tickers = ["GOOG", "FB"], 
                         from_date = "2012-01-01", to_date = "2013-01-01")
         self.assertFalse(data["Data"]["FB"].isnull().values.any())
 
     def test_only_get_required_data(self):
-        path = "cache/tests/test_only_get_required_data"
+        path = "cache/tests/data/test_only_get_required_data"
         if os.path.isfile(path): os.remove(path)
         data = get_data(path = path, tickers = ["GOOG", "FB", "AMZN"], 
                         from_date = "2012-01-01", to_date = "2013-01-01")
@@ -153,7 +153,7 @@ class TestDataConditionalLoading(unittest.TestCase):
         self.assertNotIn("2012-11-11", new_data["Data"]["GOOG"].index)
 
     def test_dont_download_when_less_data_needed(self):
-        path = "cache/tests/test_dont_donwload_when_less_data_needed"
+        path = "cache/tests/data/test_dont_donwload_when_less_data_needed"
         if os.path.isfile(path): os.remove(path)
         data = get_data(path = path, tickers = ["GOOG", "AMZN"], 
                         from_date = "2012-01-01", to_date = "2013-01-01")
@@ -179,7 +179,7 @@ class TestDataConditionalLoading(unittest.TestCase):
         self.assertIsNone(new_to)
 
     def test_getting_data_for_new_ticker(self):
-        path = "cache/tests/test_get_data_unknown_ticker"
+        path = "cache/tests/data/test_get_data_unknown_ticker"
         if os.path.isfile(path):
             os.remove(path)
         get_data(path = path, tickers = ["TSLA"], date = "2021-04-01")
@@ -188,7 +188,7 @@ class TestDataConditionalLoading(unittest.TestCase):
         self.assertAlmostEqual(gme_data["High"]["2021-04-01"], 197, 0)
 
     def test_get_data_backup(self):
-        path = "cache/tests/test_backup_get_data"
+        path = "cache/tests/data/test_backup_get_data"
         if os.path.isfile(path): os.remove(path)
         if os.path.isfile(path + "_backup"): os.remove(path + "_backup")
         get_data(tickers = ["GME"], date = "2021-04-01", path = path,
@@ -197,7 +197,7 @@ class TestDataConditionalLoading(unittest.TestCase):
         # Retrieving from backup etc. should just be handled by load_data
 
     def test_not_needing_to_download_data(self):
-        path = "cache/tests/test_not_downloading_data"
+        path = "cache/tests/data/test_not_downloading_data"
         if os.path.isfile(path):
             os.remove(path)
         data = get_data(path = path, tickers = ["GME"],
@@ -213,7 +213,7 @@ class TestDataConditionalLoading(unittest.TestCase):
         self.assertAlmostEqual(gme_data["High"]["2021-04-01"], 197, 0)
 
     def test_getting_multiple_ticker_data(self):
-        path = "cache/tests/test_get_multiple_ticker_data"
+        path = "cache/tests/data/test_get_multiple_ticker_data"
         if os.path.isfile(path):
             os.remove(path)
         data = get_data(path = path, tickers = ["GME", "TSLA"],
