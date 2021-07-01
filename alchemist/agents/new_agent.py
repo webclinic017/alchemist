@@ -10,7 +10,7 @@ import torch.nn.functional as F
 
 class Agent(nn.Module):
 
-    def __init__(self, train_ds, test_ds = None, batch_size = 128):
+    def __init__(self, train_ds, test_ds = None, batch_size = 128, learning_rate = 1e-2):
         super(Agent, self).__init__()
 
         self.n_features = len(train_ds.x_data[-1])
@@ -32,7 +32,7 @@ class Agent(nn.Module):
         self.fc3 = nn.Linear(self.input_dims, 2)
 
         # Optimizer etc.
-        self.optimizer = optim.SGD(self.parameters(), lr=1e-2, momentum=0.9)
+        self.optimizer = optim.SGD(self.parameters(), lr=learning_rate, momentum=0.9)
         self.loss = nn.CrossEntropyLoss()
         self.to(self.device)
 
