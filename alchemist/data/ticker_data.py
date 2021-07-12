@@ -98,7 +98,7 @@ def get_data(path, tickers, date = None, from_date = None, to_date = None,
     return needed_data
 
 
-def format_into_percentages(data, formatting_basis = "first open"):
+def format_into_percentages(data, formatting_basis = "daily open"):
     # Do not format already formtted data
     if len(data["Formatting"]) != 0:
         raise Exception("This data has already been formatted")
@@ -192,7 +192,7 @@ def adjust_for_volatility(data, volatility_type = "global v"):
 
 
 def format_into_xy(data, label_var = "Close", num_features = 1, label_type = "float",
-        label_type_vars = {"divider" : 0, "balance" : False}):
+        label_type_vars = {"divider" : 1, "balance" : False}):
     x_data = []
     y_data = []
 
