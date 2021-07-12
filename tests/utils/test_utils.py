@@ -31,4 +31,12 @@ class TestGraphing(unittest.TestCase):
         # step = 1 should only graph every 10th datapoint; good for dense data
         graph_train_data(results_df, path = path, step = 10)
 
+    def test_graph_backtest_data(self):
+        path = "cache/tests/plots/graph_testing/test_graphing_backtest_data.png"
+        backtest_results = [0.6 + random.random() for i in range(50)]
+        if os.path.isfile(path): os.remove(path)
+        graph_backtest_data(backtest_results, path = path)
+        self.assertTrue(os.path.isfile(path))
+
+
 
