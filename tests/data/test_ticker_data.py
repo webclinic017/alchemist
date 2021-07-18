@@ -389,10 +389,9 @@ class TestPreparingDataForTraining(unittest.TestCase):
 
     def test_formatting_into_xy_data_with_y_manipulation(self):
         # Often we want to manipulate the label, e.g. for classification
-        label_vars = {"divider" : 1}
         x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
                                         label_var = "Close", label_type = "bin",
-                                        label_type_vars = label_vars)
+                                        divider = 1)
         x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615, 
                     1.0087307269756611, 1.0576923076923077, 0.9128794701986755]]
         y_value = 0
@@ -402,7 +401,7 @@ class TestPreparingDataForTraining(unittest.TestCase):
         label_vars = {"divider" : 1, "balance" : True}
         x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
                                         label_var = "Close", label_type = "bin",
-                                        label_type_vars = label_vars)
+                                        divider = 1, balance = True)
         self.assertEqual(y_data.count(0), y_data.count(1))
         
 

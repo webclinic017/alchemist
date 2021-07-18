@@ -191,8 +191,8 @@ def adjust_for_volatility(data, volatility_type = "global v"):
     return adjusted_data
 
 
-def format_into_xy(data, label_var = "Close", num_features = 1, label_type = "float",
-        label_type_vars = {"divider" : 1, "balance" : False}):
+def format_into_xy(data, label_var = "Close", num_features = 1, 
+                   label_type = "float", divider=1, balance=False):
     x_data = []
     y_data = []
 
@@ -211,14 +211,10 @@ def format_into_xy(data, label_var = "Close", num_features = 1, label_type = "fl
         x_data.remove([])
 
     # Labels may need to be changed for classification etc.
-    # TODO: Storing label vars in a dict like this may be inadvisable, maybe fix
     if label_type == "bin":
         # "bin" for binary classification
-        divider = label_type_vars["divider"]
         for i in range(len(y_data)):
             y_data[i] = 1 if y_data[i] >= divider else 0
-        try: balance = label_type_vars["balance"]
-        except: balance = False
         if balance:
             while y_data.count(1) > y_data.count(0):
                 bad_index = y_data.index(1)
