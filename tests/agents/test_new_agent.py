@@ -19,8 +19,8 @@ class TestAgentCreation(unittest.TestCase):
     def setUp(self):
         data = get_data(path = "cache/tests/data/TestAgentCreation", tickers = ["GME", "TSLA"], 
                         from_date = "2021-03-01", to_date = "2021-04-01")
-        data = format_into_percentages(data, formatting_basis = "daily open")
-        x, y = format_into_xy(data, num_features = 3)
+        self.data = format_into_percentages(data, formatting_basis = "daily open")
+        x, y = format_into_xy(self.data, num_features = 3)
         # In some cases we don't need to test the agent, and provide a single ds
         self.dataset = TickerDataset(x, y)
         # In other cases we provide both a train and a test dataset
@@ -41,9 +41,14 @@ class TestAgentCreation(unittest.TestCase):
         # like "self.to(self.device)", but it should work fine
 
     def test_calc_input_dims(self):
-        agent = Agent(self.dataset)
-        dims1 = agent.calc_input_dims(40, 5)
-        dims2 = agent.calc_input_dims(50, 6)
+        x, y = format_into_xy(self.data, num_features = 3)
+        dataset = TickerDataset(x, y)
+        agent = Agent(dataset)
+        dims1 = agent.input_dims
+        x, y = format_into_xy(self.data, num_features = 6)
+        dataset = TickerDataset(x, y)
+        agent = Agent(dataset)
+        dims2 = agent.input_dims
         self.assertEqual(type(dims1), int)
         self.assertNotEqual(dims1, dims2)
 
@@ -54,6 +59,13 @@ class TestAgentCreation(unittest.TestCase):
         agent = Agent(self.train_ds, self.test_ds)
         self.assertEqual(type(agent.train_data_loader), T.utils.data.DataLoader)
         self.assertEqual(type(agent.test_data_loader), T.utils.data.DataLoader)
+
+    def test_changing_data_loader_params(self):
+        agent = Agent(self.train_ds, num_workers = 5)
+        self.assertEqual(agent.train_data_loader.num_workers, 5)
+        agent = Agent(self.train_ds, self.test_ds, num_workers = 10)
+        self.assertEqual(agent.train_data_loader.num_workers, 10)
+        self.assertEqual(agent.test_data_loader.num_workers, 10)
 
 
 class TestAgentFunctionality(unittest.TestCase):
@@ -68,7 +80,7 @@ class TestAgentFunctionality(unittest.TestCase):
         self.agent = Agent(train_ds, test_ds, batch_size = 8)
 
     def test_padding(self):
-        x = T.zeros((1, 1, 3, 2))
+        x = T.zeros((1, 1, 3, 2)).to(self.agent.device)
         x = self.agent.conv1(x)
         x = self.agent.maxpool1(x)
         x = self.agent.conv2(x)

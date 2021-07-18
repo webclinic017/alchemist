@@ -1,5 +1,6 @@
 import os
 import math
+import datetime
 import warnings
 import torch as T
 import numpy as np
@@ -10,7 +11,8 @@ import torch.nn.functional as F
 
 class Agent(nn.Module):
 
-    def __init__(self, train_ds, test_ds = None, batch_size = 128, learning_rate = 1e-2):
+    def __init__(self, train_ds, test_ds = None, batch_size = 128, learning_rate = 1e-2,
+                 num_workers = 0):
         super(Agent, self).__init__()
 
         self.n_features = len(train_ds.x_data[-1])
@@ -39,11 +41,11 @@ class Agent(nn.Module):
         # Data loaders
         # print(train_ds.x_data)
         self.train_data_loader = T.utils.data.DataLoader(train_ds,
-                    batch_size = batch_size, shuffle=True, num_workers=8)
+                    batch_size = batch_size, shuffle=True, num_workers=num_workers)
         # for x, y in enumerate(self.train_data_loader): print(x, y)
         self.test_data_loader = None if test_ds == None else (
                 T.utils.data.DataLoader(train_ds, batch_size = batch_size, 
-                                        shuffle=True, num_workers=8))
+                                        shuffle=True, num_workers=num_workers))
 
         # For documentation, testing etc.
         self.loss_history = []
@@ -109,6 +111,7 @@ class Agent(nn.Module):
         loss_history = []
 
         for ep in range(epochs):
+            # print(len(enumerate(train_data_loader)))
             ep_loss = 0
             ep_acc = []
             # print("-------------", self.train_data_loader.x_data)
@@ -133,6 +136,7 @@ class Agent(nn.Module):
                 loss = self.loss(prediction, label)
                 loss.backward()
                 self.optimizer.step()
+                # +_+_+_+_ previous
                 # ---                  ---
                 # +++ Pretty much just documentation +++
                 # print(prediction)
