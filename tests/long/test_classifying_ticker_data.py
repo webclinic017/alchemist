@@ -14,6 +14,7 @@ from alchemist.agents.new_agent import *
 class TestAgentBasic(unittest.TestCase):
 
     def test_single_ticker(self):
+        print("Basic Test : single ticker")
         # Just 10 years of apple data used here
         path = "cache/tests/data/test_new_agent_single_ticker_data_basic"
         data = get_data(path = path, tickers = ["AAPL"], 
@@ -36,6 +37,7 @@ class TestAgentBasic(unittest.TestCase):
 
 
     def test_multiple_ticker(self):
+        print("Basic Test : multiple tickers")
         # Smaller time frame, more tickers, same amount of data total
         path = "cache/tests/data/test_new_agent_multiple_ticker_data_basic"
         data = get_data(path = path, tickers = ["AAPL", "GOOG", "AMZN"], 
@@ -53,6 +55,7 @@ class TestAgentBasic(unittest.TestCase):
         graph_train_data(data = train_hist, path = plot_path, step = 5)
 
     def test_with_split_train_test_data(self):
+        print("Basic Test : hard-split train and test data")
         # To remove possibility that data overlap between train and test data
         # is the cause of successful tests, here we ensure there is 0 overlap 
         # between train and test data
@@ -94,6 +97,7 @@ class TestWithChangingHyperparameters(unittest.TestCase):
         self.agent = Agent(train_ds, test_ds)
 
     def test_control(self):
+        print("Hyperparameter Tuning : control")
         # A control is needed to compare the tests to
         train_hist = self.agent._train(epochs = 300, verbose = True)
         acc, loss = self.agent._test(verbose = True)
@@ -103,6 +107,7 @@ class TestWithChangingHyperparameters(unittest.TestCase):
         graph_train_data(data = train_hist, path = path, step = 5)
 
     def test_with_increased_features(self):
+        print("Hyperparameter Tuning : more features")
         # Here the agent is given five times as many features to consider
         x, y = format_into_xy(self.data, num_features = 30, label_type = "bin", 
                 label_type_vars = {"divider" : 1, "balance" : True})
@@ -116,6 +121,7 @@ class TestWithChangingHyperparameters(unittest.TestCase):
         graph_train_data(data = train_hist, path = path, step = 5)
     
     def test_with_adjusting_for_volatility(self):
+        print("Hyperparameter Tuning : adjusted volatility")
         # Here we adjust for volatility to see if that makes a difference
         data = adjust_for_volatility(self.data, volatility_type = "daily v")
         x, y = format_into_xy(data, num_features = 5, label_type = "bin", 
@@ -130,6 +136,7 @@ class TestWithChangingHyperparameters(unittest.TestCase):
         graph_train_data(data = train_hist, path = path, step = 5)
 
     def test_adjusting_for_volatility_with_lowered_lr(self):
+        print("Hyperparameter Tuning : adjusted volatility and lowered lr")
         # Here we adjust for volatility to see if that makes a difference
         data = adjust_for_volatility(self.data, volatility_type = "daily v")
         x, y = format_into_xy(data, num_features = 5, label_type = "bin", 
@@ -156,12 +163,12 @@ class TestActualGains(unittest.TestCase):
 
         # self.agent = Agent(train_ds, test_ds)
 
-    def backtest(self, agent, x, y, n_tickers = 1):
+    def backtest(self, agent, x, y, n_tickers = 1, backtest_name = ""):
         # x data should be formatted for the agent, y data only into percentages
         # print(x)
         x = T.tensor(x, dtype = T.float32)
         x = T.unsqueeze(x, 1)
-        prediction = agent.forward(x)
+        prediction = agent.forward(x).cpu()
         # print(prediction)
         prediction = F.softmax(prediction, dim=1)
         # print(prediction)
@@ -190,10 +197,11 @@ class TestActualGains(unittest.TestCase):
         # print(choices.count(0))
         # print(gains.count(1))
         # print(gains)
-        path = "cache/tests/plots/ticker_agent_testing/backtests/backtest.png"
+        path = "cache/tests/plots/ticker_agent_testing/backtests/" + backtest_name + "backtest.png"
         graph_backtest_data(gains, path)
 
     def test_basic_backtest(self):
+        print("Backtests : basic")
         # As seen several times above, but without a train-test split
         training_data = get_data(path = self.path, tickers = ["AAPL", "GOOG", "AMZN"], 
                                  from_date = "2010-01-01", to_date = "2018-01-01")
@@ -217,6 +225,7 @@ class TestActualGains(unittest.TestCase):
         self.backtest(agent, test_x, test_y, len(test_data["Data"].keys()))
 
     def test_volatility_backtest(self):
+        print("Backtests : adjusted volatility")
         # As seen several times above, but without a train-test split
         training_data = get_data(path = self.path, tickers = ["AAPL", "GOOG", "AMZN"], 
                                  from_date = "2010-01-01", to_date = "2018-01-01")
@@ -241,9 +250,10 @@ class TestActualGains(unittest.TestCase):
 
         print("Beginning backtest...")
         # backtest does all the rest of the work
-        self.backtest(agent, test_x, test_y, len(test_data["Data"].keys()))
+        self.backtest(agent, test_x, test_y, len(test_data["Data"].keys()), backtest_name = "adjusted_volatility_")
 
     def test_backtest_with_more_features(self):
+        print("Backtests : increased features")
         # As seen several times above, but without a train-test split
         training_data = get_data(path = self.path, tickers = ["AAPL", "GOOG", "AMZN"], 
                                  from_date = "2010-01-01", to_date = "2018-01-01")
@@ -264,4 +274,5 @@ class TestActualGains(unittest.TestCase):
 
         print("Beginning backtest...")
         # backtest does all the rest of the work
-        self.backtest(agent, test_x, test_y, len(test_data["Data"].keys()))
+        self.backtest(agent, test_x, test_y, len(test_data["Data"].keys()), backtest_name = "increased_features_")
+
