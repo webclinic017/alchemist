@@ -11,8 +11,8 @@ import torch.nn.functional as F
 
 class Agent(nn.Module):
 
-    def __init__(self, train_ds, test_ds = None, batch_size = 128, learning_rate = 1e-2,
-                 num_workers = 0):
+    def __init__(self, train_ds=None, test_ds=None, batch_size=128,
+                 learning_rate=1e-2, num_workers=0):
         super(Agent, self).__init__()
 
         self.n_features = len(train_ds.x_data[-1])
@@ -40,8 +40,9 @@ class Agent(nn.Module):
 
         # Data loaders
         # print(train_ds.x_data)
-        self.train_data_loader = T.utils.data.DataLoader(train_ds,
-                    batch_size = batch_size, shuffle=True, num_workers=num_workers)
+        self.train_data_loader = None if train_ds == None else (
+                T.utils.data.DataLoader(train_ds, batch_size = batch_size, 
+                                        shuffle=True, num_workers=num_workers))
         # for x, y in enumerate(self.train_data_loader): print(x, y)
         self.test_data_loader = None if test_ds == None else (
                 T.utils.data.DataLoader(train_ds, batch_size = batch_size, 
