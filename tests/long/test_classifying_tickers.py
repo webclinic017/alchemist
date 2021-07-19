@@ -35,7 +35,7 @@ class Test1TrainAgents(unittest.TestCase):
         agent.save_chkpt(path="cache/tests/agents/long/agent_control")
         save_data(train_hist, "cache/tests/results/long/control_training")
 
-    def test_10_features(self):
+    def _10_features(self):
         # Get training data
         train_ds, test_ds = self.get_train_test_data(num_features=10)
         # Make and train the agent
@@ -45,7 +45,7 @@ class Test1TrainAgents(unittest.TestCase):
         agent.save_chkpt(path="cache/tests/agents/long/agent_10_features")
         save_data(train_hist, "cache/tests/results/long/10_features_training")
 
-    def test_30_features(self):
+    def _30_features(self):
         # Get training data
         train_ds, test_ds = self.get_train_test_data(num_features=30)
         # Make and train the agent
@@ -54,6 +54,28 @@ class Test1TrainAgents(unittest.TestCase):
         # Record all of the collected data and save the agent
         agent.save_chkpt(path="cache/tests/agents/long/agent_30_features")
         save_data(train_hist, "cache/tests/results/long/30_features_training")
+
+    def test_smaller_kernel(self):
+        # Get training data
+        train_ds, test_ds = self.get_train_test_data()
+        # Make and train the agent
+        agent = Agent(train_ds, test_ds, kernel_size=2)
+        train_hist = agent._train(epochs=500, verbose=True)
+        # Record all of the collected data and save the agent
+        agent.save_chkpt(path="cache/tests/agents/long/agent_small_kernel")
+        save_data(train_hist, "cache/tests/results/long/small_kernel_training")
+
+    def test_larger_kernel(self):
+        # Get training data
+        train_ds, test_ds = self.get_train_test_data()
+        # Make and train the agent
+        agent = Agent(train_ds, test_ds, kernel_size=4)
+        train_hist = agent._train(epochs=500, verbose=True)
+        # Record all of the collected data and save the agent
+        agent.save_chkpt(path="cache/tests/agents/long/agent_large_kernel")
+        save_data(train_hist, "cache/tests/results/long/large_kernel_training")
+
+
 
 class Test2BacktestAgents(unittest.TestCase):
     # Tests the agents on real data from recent years 
@@ -108,7 +130,7 @@ class Test2BacktestAgents(unittest.TestCase):
         # Save all gathered data
         save_data(gains, fname="cache/tests/results/long/control_backtest")
 
-    def test_10_features(self):
+    def _10_features(self):
         print("10 featurees Backtest:")
         # Get the test data
         x, y, example_ds = self.get_test_data(n_features=10)
@@ -120,7 +142,7 @@ class Test2BacktestAgents(unittest.TestCase):
         # Save all gathered data
         save_data(gains, fname="cache/tests/results/long/10_features_backtest")
 
-    def test_30_features(self):
+    def _30_features(self):
         print("30 features Backtest:")
         # Get the test data
         x, y, example_ds = self.get_test_data(n_features=30)
@@ -131,6 +153,30 @@ class Test2BacktestAgents(unittest.TestCase):
         gains = self.backtest(agent, x, y)
         # Save all gathered data
         save_data(gains, fname="cache/tests/results/long/30_features_backtest")
+
+    def test_smaller_kernel(self):
+        print("Smaller Kernel Backtest:")
+        # Get the test data
+        x, y, example_ds = self.get_test_data()
+        # Load the agent
+        agent = Agent(example_ds, kernel_size=2)
+        agent.load_chkpt("cache/tests/agents/long/agent_small_kernel")
+        # Perform the backtest
+        gains = self.backtest(agent, x, y)
+        # Save all gathered data
+        save_data(gains, fname="cache/tests/results/long/small_kernel_backtest")
+
+    def test_larger_kernel(self):
+        print("Larger Kernel Backtest:")
+        # Get the test data
+        x, y, example_ds = self.get_test_data()
+        # Load the agent
+        agent = Agent(example_ds, kernel_size=4)
+        agent.load_chkpt("cache/tests/agents/long/agent_large_kernel")
+        # Perform the backtest
+        gains = self.backtest(agent, x, y)
+        # Save all gathered data
+        save_data(gains, fname="cache/tests/results/long/large_kernel_backtest")
 
 class Test3GraphData(unittest.TestCase):
     # Graphs all the data aquired during testing
@@ -158,3 +204,19 @@ class Test3GraphData(unittest.TestCase):
         # graph the data
         graph_train_data(train_hist, "cache/plots/long/training_30_features", step=5)
         graph_backtest_data(backtest_data, "cache/plots/long/backtest_30_features")
+
+    def test_smaller_kernel(self):
+        # Load the data
+        train_hist = load_data("cache/tests/results/long/small_kernel_training")
+        backtest_data = load_data("cache/tests/results/long/small_kernel_backtest")
+        # Graph the data
+        graph_train_data(train_hist, "cache/plots/long/training_small_kernel", step=5)
+        graph_backtest_data(backtest_data, "cache/plots/long/backtest_small_kernel")
+
+    def test_larger_kernel(self):
+        # Load the data
+        train_hist = load_data("cache/tests/results/long/large_kernel_training")
+        backtest_data = load_data("cache/tests/results/long/large_kernel_backtest")
+        # Graph the data
+        graph_train_data(train_hist, "cache/plots/long/training_large_kernel", step=5)
+        graph_backtest_data(backtest_data, "cache/plots/long/backtest_large_kernel")

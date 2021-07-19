@@ -12,7 +12,7 @@ import torch.nn.functional as F
 class Agent(nn.Module):
 
     def __init__(self, train_ds=None, test_ds=None, batch_size=128,
-                 learning_rate=1e-2, num_workers=0):
+                 learning_rate=1e-2, num_workers=0, kernel_size=3):
         super(Agent, self).__init__()
 
         self.n_features = len(train_ds.x_data[-1])
@@ -21,7 +21,6 @@ class Agent(nn.Module):
         self.device = T.device("cuda:0" if T.cuda.is_available() else "cpu")
 
         # Layers, but not like an oinion
-        kernel_size = 3
         padding = math.floor(kernel_size / 2)
         self.conv1 = nn.Conv2d(1, 16, kernel_size, padding = padding)
         self.maxpool1 = nn.MaxPool2d(kernel_size, padding = padding, stride = 1)
