@@ -8,6 +8,7 @@ from alchemist.agents.new_agent import *
 # The top ten weighted stocks of the NASDAQ 100
 top_nasdaq_tickers = ["AAPL", "MSFT", "AMZN", "GOOG", #"FB", 
                       "GOOGL", "NVDA", "ADBE"] #, "TSLA", "PYPL"]
+# top_nasdaq_tickers = ["AAPL", "GOOG", "AMZN"]
 
 class Test1TrainAgents(unittest.TestCase):
     # Tests how effectively the agents train, 
@@ -16,12 +17,13 @@ class Test1TrainAgents(unittest.TestCase):
     def get_train_test_data(self, path="cache/tests/data/long/train_data", 
                             tickers=top_nasdaq_tickers,
                             from_date="2011-01-01", to_date="2018-01-01",
-                            formatting_basis="daily close", num_features=5):
+                            formatting_basis="daily close", num_features=5,
+                            divider=1):
         data = get_data(path=path, tickers=tickers,
                         from_date=from_date, to_date=to_date)
         data = format_into_percentages(data, formatting_basis=formatting_basis)
         x, y = format_into_xy(data, num_features=num_features, label_type="bin",
-                              balance=True)
+                              balance=True, divider=divider)
         train_ds, test_ds = train_test_datasets(x, y)
         return train_ds, test_ds
 
@@ -30,50 +32,127 @@ class Test1TrainAgents(unittest.TestCase):
         train_ds, test_ds = self.get_train_test_data()
         # Make and train the agent
         agent = Agent(train_ds, test_ds)
-        train_hist = agent._train(epochs=500, verbose=True)
+        train_hist = agent._train(epochs=700, verbose=False)
         # Record all of the collected data and save the agent
         agent.save_chkpt(path="cache/tests/agents/long/agent_control")
         save_data(train_hist, "cache/tests/results/long/control_training")
+        # Run a simple test to check for overfitting
+        acc, loss = agent._test(verbose = True)
+
+    def test_volatility(self):
+        # Get training data
+        data = get_data(path="cache/tests/data/long/train_data", 
+                        tickers=top_nasdaq_tickers,
+                        from_date="2011-01-01", to_date="2018-01-01")
+        data = adjust_for_volatility(data, volatility_type="daily v")
+        print(data)
+        x, y = format_into_xy(data, num_features=5, label_type="bin",
+                              balance=True, divider=0.99)
+        train_ds, test_ds = train_test_datasets(x, y)
+        # Make and train the agent
+        agent = Agent(train_ds, test_ds, learning_rate=3e-3)
+        train_hist = agent._train(epochs=700, verbose=False)
+        # Record all of the collected data and save the agent
+        agent.save_chkpt(path="cache/tests/agents/long/agent_volatility")
+        save_data(train_hist, "cache/tests/results/long/volatility_training")
+        # Run a simple test to check for overfitting
+        acc, loss = agent._test(verbose = True)
+
+    def _divider_11(self):
+        # Get training data
+        train_ds, test_ds = self.get_train_test_data(divider=1.01)
+        # Make and train the agent
+        agent = Agent(train_ds, test_ds)
+        train_hist = agent._train(epochs=700, verbose=False)
+        # Record all of the collected data and save the agent
+        agent.save_chkpt(path="cache/tests/agents/long/agent_divider11")
+        save_data(train_hist, "cache/tests/results/long/divider11_training")
+        # Run a simple test to check for overfitting
+        acc, loss = agent._test(verbose = True)
+
+    def _divider_13(self):
+        # Get training data
+        train_ds, test_ds = self.get_train_test_data(divider=1.03)
+        # Make and train the agent
+        agent = Agent(train_ds, test_ds, learning_rate=4e-4)
+        train_hist = agent._train(epochs=700, verbose=False)
+        # Record all of the collected data and save the agent
+        agent.save_chkpt(path="cache/tests/agents/long/agent_divider13")
+        save_data(train_hist, "cache/tests/results/long/divider13_training")
+        # Run a simple test to check for overfitting
+        acc, loss = agent._test(verbose = True)
+
+    def _divider_15(self):
+        # Get training data
+        train_ds, test_ds = self.get_train_test_data(divider=1.05)
+        # Make and train the agent
+        agent = Agent(train_ds, test_ds, learning_rate=2e-4)
+        train_hist = agent._train(epochs=700, verbose=False)
+        # Record all of the collected data and save the agent
+        agent.save_chkpt(path="cache/tests/agents/long/agent_divider15")
+        save_data(train_hist, "cache/tests/results/long/divider15_training")
+        # Run a simple test to check for overfitting
+        acc, loss = agent._test(verbose = True)
+
+    def _divider_102(self):
+        # Get training data
+        train_ds, test_ds = self.get_train_test_data(divider=1.002)
+        # Make and train the agent
+        agent = Agent(train_ds, test_ds, learning_rate=1e-3)
+        train_hist = agent._train(epochs=700, verbose=False)
+        # Record all of the collected data and save the agent
+        agent.save_chkpt(path="cache/tests/agents/long/agent_divider102")
+        save_data(train_hist, "cache/tests/results/long/divider102_training")
+        # Run a simple test to check for overfitting
+        acc, loss = agent._test(verbose = True)
 
     def _10_features(self):
         # Get training data
         train_ds, test_ds = self.get_train_test_data(num_features=10)
         # Make and train the agent
         agent = Agent(train_ds, test_ds)
-        train_hist = agent._train(epochs=500, verbose=True)
+        train_hist = agent._train(epochs=700, verbose=False)
         # Record all of the collected data and save the agent
         agent.save_chkpt(path="cache/tests/agents/long/agent_10_features")
         save_data(train_hist, "cache/tests/results/long/10_features_training")
+        # Run a simple test to check for overfitting
+        acc, loss = agent._test(verbose = True)
 
     def _30_features(self):
         # Get training data
         train_ds, test_ds = self.get_train_test_data(num_features=30)
         # Make and train the agent
         agent = Agent(train_ds, test_ds)
-        train_hist = agent._train(epochs=500, verbose=True)
+        train_hist = agent._train(epochs=700, verbose=False)
         # Record all of the collected data and save the agent
         agent.save_chkpt(path="cache/tests/agents/long/agent_30_features")
         save_data(train_hist, "cache/tests/results/long/30_features_training")
+        # Run a simple test to check for overfitting
+        acc, loss = agent._test(verbose = True)
 
-    def test_smaller_kernel(self):
+    def _smaller_kernel(self):
         # Get training data
         train_ds, test_ds = self.get_train_test_data()
         # Make and train the agent
         agent = Agent(train_ds, test_ds, kernel_size=2)
-        train_hist = agent._train(epochs=500, verbose=True)
+        train_hist = agent._train(epochs=700, verbose=False)
         # Record all of the collected data and save the agent
         agent.save_chkpt(path="cache/tests/agents/long/agent_small_kernel")
         save_data(train_hist, "cache/tests/results/long/small_kernel_training")
+        # Run a simple test to check for overfitting
+        acc, loss = agent._test(verbose = True)
 
-    def test_larger_kernel(self):
+    def _larger_kernel(self):
         # Get training data
         train_ds, test_ds = self.get_train_test_data()
         # Make and train the agent
         agent = Agent(train_ds, test_ds, kernel_size=4)
-        train_hist = agent._train(epochs=500, verbose=True)
+        train_hist = agent._train(epochs=700, verbose=False)
         # Record all of the collected data and save the agent
         agent.save_chkpt(path="cache/tests/agents/long/agent_large_kernel")
         save_data(train_hist, "cache/tests/results/long/large_kernel_training")
+        # Run a simple test to check for overfitting
+        acc, loss = agent._test(verbose = True)
 
 
 
@@ -90,7 +169,7 @@ class Test2BacktestAgents(unittest.TestCase):
                 test_data, formatting_basis=formatting_basis)
         test_x, test_y = format_into_xy(
                 test_data, num_features=n_features, label_type="float",
-                divider=1, balance=False)
+                balance=False)
         example_ds = TickerDataset(test_x, test_y)
 
         return (test_x, test_y, example_ds)
@@ -117,7 +196,7 @@ class Test2BacktestAgents(unittest.TestCase):
         print("Days:", len(y))
 
         return gains
-    
+
     def test_control(self):
         print("Control Backtest:")
         # Get the test data
@@ -129,6 +208,77 @@ class Test2BacktestAgents(unittest.TestCase):
         gains = self.backtest(agent, x, y)
         # Save all gathered data
         save_data(gains, fname="cache/tests/results/long/control_backtest")
+
+    def test_volatility(self):
+        print("Volatility Backtest:")
+        # Get the test data
+        test_data = get_data(path="cache/tests/data/long/backtest_data", 
+                             tickers=top_nasdaq_tickers,
+                             from_date="2018-01-01", to_date="2021-01-01")
+        vol_test_data = adjust_for_volatility(test_data, volatility_type="daily v")
+        per_test_data = format_into_percentages(test_data, formatting_basis="daily close")
+        test_x, y = format_into_xy(
+                vol_test_data, num_features=5, label_type="float",
+                balance=False)
+        x, test_y = format_into_xy(
+                per_test_data, num_features=5, label_type="float",
+                balance=False)
+        example_ds = TickerDataset(test_x, test_y)
+        # Load the agent
+        agent = Agent(example_ds)
+        agent.load_chkpt("cache/tests/agents/long/agent_volatility")
+        # Perform the backtest
+        gains = self.backtest(agent, test_x, test_y)
+        # Save all gathered data
+        save_data(gains, fname="cache/tests/results/long/volatility_backtest")
+
+    def _divider_11(self):
+        print("Divider 1.01 Backtest:")
+        # Get the test data
+        x, y, example_ds = self.get_test_data()
+        # Load the agent
+        agent = Agent(example_ds)
+        agent.load_chkpt("cache/tests/agents/long/agent_divider11")
+        # Perform the backtest
+        gains = self.backtest(agent, x, y)
+        # Save all gathered data
+        save_data(gains, fname="cache/tests/results/long/divider11_backtest")
+
+    def _divider_13(self):
+        print("Divider 1.03 Backtest:")
+        # Get the test data
+        x, y, example_ds = self.get_test_data()
+        # Load the agent
+        agent = Agent(example_ds)
+        agent.load_chkpt("cache/tests/agents/long/agent_divider13")
+        # Perform the backtest
+        gains = self.backtest(agent, x, y)
+        # Save all gathered data
+        save_data(gains, fname="cache/tests/results/long/divider13_backtest")
+
+    def _divider_15(self):
+        print("Divider 1.05 Backtest:")
+        # Get the test data
+        x, y, example_ds = self.get_test_data()
+        # Load the agent
+        agent = Agent(example_ds)
+        agent.load_chkpt("cache/tests/agents/long/agent_divider15")
+        # Perform the backtest
+        gains = self.backtest(agent, x, y)
+        # Save all gathered data
+        save_data(gains, fname="cache/tests/results/long/divider15_backtest")
+
+    def _divider_102(self):
+        print("Divider 1.002 Backtest:")
+        # Get the test data
+        x, y, example_ds = self.get_test_data()
+        # Load the agent
+        agent = Agent(example_ds)
+        agent.load_chkpt("cache/tests/agents/long/agent_divider102")
+        # Perform the backtest
+        gains = self.backtest(agent, x, y)
+        # Save all gathered data
+        save_data(gains, fname="cache/tests/results/long/divider102_backtest")
 
     def _10_features(self):
         print("10 featurees Backtest:")
@@ -154,7 +304,7 @@ class Test2BacktestAgents(unittest.TestCase):
         # Save all gathered data
         save_data(gains, fname="cache/tests/results/long/30_features_backtest")
 
-    def test_smaller_kernel(self):
+    def _smaller_kernel(self):
         print("Smaller Kernel Backtest:")
         # Get the test data
         x, y, example_ds = self.get_test_data()
@@ -166,7 +316,7 @@ class Test2BacktestAgents(unittest.TestCase):
         # Save all gathered data
         save_data(gains, fname="cache/tests/results/long/small_kernel_backtest")
 
-    def test_larger_kernel(self):
+    def _larger_kernel(self):
         print("Larger Kernel Backtest:")
         # Get the test data
         x, y, example_ds = self.get_test_data()
@@ -186,10 +336,50 @@ class Test3GraphData(unittest.TestCase):
         train_hist = load_data("cache/tests/results/long/control_training")
         backtest_data = load_data("cache/tests/results/long/control_backtest")
         # Graph the data
-        graph_train_data(train_hist, "cache/plots/long/training_5_features", step=5)
-        graph_backtest_data(backtest_data, "cache/plots/long/backtest_5_features")
+        graph_train_data(train_hist, "cache/plots/long/training_control", step=5)
+        graph_backtest_data(backtest_data, "cache/plots/long/backtest_control")
 
-    def test_10_features(self):
+    def test_volatility(self):
+        # Load the data
+        train_hist = load_data("cache/tests/results/long/volatility_training")
+        backtest_data = load_data("cache/tests/results/long/volatility_backtest")
+        # Graph the data
+        graph_train_data(train_hist, "cache/plots/long/training_volatility", step=5)
+        graph_backtest_data(backtest_data, "cache/plots/long/backtest_volatility")
+
+    def _divider_11(self):
+        # Load the data
+        train_hist = load_data("cache/tests/results/long/divider11_training")
+        backtest_data = load_data("cache/tests/results/long/divider11_backtest")
+        # Graph the data
+        graph_train_data(train_hist, "cache/plots/long/training_divider11", step=5)
+        graph_backtest_data(backtest_data, "cache/plots/long/backtest_divider11")
+
+    def _divider_13(self):
+        # Load the data
+        train_hist = load_data("cache/tests/results/long/divider13_training")
+        backtest_data = load_data("cache/tests/results/long/divider13_backtest")
+        # Graph the data
+        graph_train_data(train_hist, "cache/plots/long/training_divider13", step=5)
+        graph_backtest_data(backtest_data, "cache/plots/long/backtest_divider13")
+
+    def _divider_15(self):
+        # Load the data
+        train_hist = load_data("cache/tests/results/long/divider15_training")
+        backtest_data = load_data("cache/tests/results/long/divider15_backtest")
+        # Graph the data
+        graph_train_data(train_hist, "cache/plots/long/training_divider15", step=5)
+        graph_backtest_data(backtest_data, "cache/plots/long/backtest_divider15")
+
+    def _divider_102(self):
+        # Load the data
+        train_hist = load_data("cache/tests/results/long/divider102_training")
+        backtest_data = load_data("cache/tests/results/long/divider102_backtest")
+        # Graph the data
+        graph_train_data(train_hist, "cache/plots/long/training_divider102", step=5)
+        graph_backtest_data(backtest_data, "cache/plots/long/backtest_divider102")
+
+    def _10_features(self):
         # load the data
         train_hist = load_data("cache/tests/results/long/10_features_training")
         backtest_data = load_data("cache/tests/results/long/10_features_backtest")
@@ -197,7 +387,7 @@ class Test3GraphData(unittest.TestCase):
         graph_train_data(train_hist, "cache/plots/long/training_10_features", step=5)
         graph_backtest_data(backtest_data, "cache/plots/long/backtest_10_features")
 
-    def test_30_features(self):
+    def _30_features(self):
         # load the data
         train_hist = load_data("cache/tests/results/long/30_features_training")
         backtest_data = load_data("cache/tests/results/long/30_features_backtest")
@@ -205,7 +395,7 @@ class Test3GraphData(unittest.TestCase):
         graph_train_data(train_hist, "cache/plots/long/training_30_features", step=5)
         graph_backtest_data(backtest_data, "cache/plots/long/backtest_30_features")
 
-    def test_smaller_kernel(self):
+    def _smaller_kernel(self):
         # Load the data
         train_hist = load_data("cache/tests/results/long/small_kernel_training")
         backtest_data = load_data("cache/tests/results/long/small_kernel_backtest")
@@ -213,7 +403,7 @@ class Test3GraphData(unittest.TestCase):
         graph_train_data(train_hist, "cache/plots/long/training_small_kernel", step=5)
         graph_backtest_data(backtest_data, "cache/plots/long/backtest_small_kernel")
 
-    def test_larger_kernel(self):
+    def _larger_kernel(self):
         # Load the data
         train_hist = load_data("cache/tests/results/long/large_kernel_training")
         backtest_data = load_data("cache/tests/results/long/large_kernel_backtest")
