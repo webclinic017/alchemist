@@ -85,6 +85,8 @@ class TestAgentFunctionality(unittest.TestCase):
         x = self.agent.maxpool1(x)
         x = self.agent.conv2(x)
         x = self.agent.maxpool2(x)
+        x = self.agent.conv3(x)
+        x = self.agent.maxpool3(x)
         self.assertEqual(x.size(), T.Size([1, 32, 3, 2]))
 
     def test_forward(self):

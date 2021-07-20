@@ -12,7 +12,7 @@ import torch.nn.functional as F
 class Agent(nn.Module):
 
     def __init__(self, train_ds=None, test_ds=None, batch_size=128,
-                 learning_rate=1e-2, num_workers=0, kernel_size=3):
+                 learning_rate=4e-3, num_workers=0, kernel_size=3):
         super(Agent, self).__init__()
 
         self.n_features = len(train_ds.x_data[-1])
@@ -26,6 +26,8 @@ class Agent(nn.Module):
         self.maxpool1 = nn.MaxPool2d(kernel_size, padding = padding, stride = 1)
         self.conv2 = nn.Conv2d(16, 32, kernel_size, padding = padding)
         self.maxpool2 = nn.MaxPool2d(kernel_size, padding = padding, stride = 1)
+        self.conv3 = nn.Conv2d(32, 32, kernel_size, padding = padding)
+        self.maxpool3 = nn.MaxPool2d(kernel_size, padding = padding, stride = 1)
         # Boring Layers
         self.input_dims = self.calc_input_dims(self.n_features, self.feature_length)
         self.fc1 = nn.Linear(self.input_dims, self.input_dims * 2)
@@ -59,6 +61,8 @@ class Agent(nn.Module):
         x = self.maxpool1(x)
         x = self.conv2(x)
         x = self.maxpool2(x)
+        x = self.conv3(x)
+        x = self.maxpool3(x)
 
         return int(np.prod(x.size()))
 
@@ -75,6 +79,9 @@ class Agent(nn.Module):
         x = self.conv2(x)
         x = F.relu(x)
         x = self.maxpool2(x)
+        x = self.conv3(x)
+        x = F.relu(x)
+        x = self.maxpool3(x)
         # Rearrange input to be a 1-dimentional tensor for the fc layers
         x = x.view(x.size()[0], -1)
         # Now apply the fully-connected layers
@@ -158,13 +165,18 @@ class Agent(nn.Module):
             if verbose: print("Finished epoch", ep, 
                               " total loss % .3f" % ep_loss,
                               " accuracy %.3f" % np.mean(ep_acc))
+            else: print("Finished epoch", ep, 
+                        " total loss % .3f" % ep_loss,
+                        " accuracy %.3f" % np.mean(ep_acc),
+                        end = "\r")
+        if not verbose: print("")
 
         train_hist = pd.DataFrame({"epoch" : range(1, epochs + 1),
                                    "acc" : acc_history,
                                    "loss" : loss_history})
         return train_hist
 
-    def _test(self, epochs = 5, verbose = False):
+    def _test(self, epochs = 1, verbose = False):
         # Makes sure there isn't any random variation, as in training
         self.eval()
         # Clear history for documentation
