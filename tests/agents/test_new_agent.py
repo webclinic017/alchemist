@@ -106,7 +106,7 @@ class TestAgentFunctionality(unittest.TestCase):
 
     def test_train(self):
         # Run the train function
-        train_hist = self.agent._train(epochs = 5)
+        train_hist = self.agent._train(epochs = 15)
         # The acc and loss history should show improvement
         self.assertEqual(type(train_hist), pd.DataFrame)
         epochs = train_hist["epoch"]
