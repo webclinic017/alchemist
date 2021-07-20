@@ -192,7 +192,8 @@ def adjust_for_volatility(data, volatility_type = "global v"):
 
 
 def format_into_xy(data, label_var = "Close", num_features = 1, 
-                   label_type = "float", divider=1, balance=False):
+                   label_type = "float", divider=1, balance=False,
+                   offset=0):
     x_data = []
     y_data = []
 
@@ -213,8 +214,8 @@ def format_into_xy(data, label_var = "Close", num_features = 1,
     # Labels may need to be changed for classification etc.
     if label_type == "bin":
         # "bin" for binary classification
-        for i in range(len(y_data)):
-            y_data[i] = 1 if y_data[i] >= divider else 0
+        for i in range(len(y_data) - offset):
+            y_data[i] = 1 if y_data[i + offset] >= divider else 0
         if balance:
             while y_data.count(1) > y_data.count(0):
                 bad_index = y_data.index(1)
@@ -224,6 +225,10 @@ def format_into_xy(data, label_var = "Close", num_features = 1,
                 bad_index = y_data.index(0)
                 y_data.pop(bad_index)
                 x_data.pop(bad_index)
+    elif label_type == "float" and offset > 0:
+        for i in range(len(y_data) - offset):
+            y_data[i] = y_data[i + offset] 
+
     
     return x_data, y_data
 

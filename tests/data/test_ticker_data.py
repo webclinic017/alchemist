@@ -374,6 +374,18 @@ class TestPreparingDataForTraining(unittest.TestCase):
         y_value = 0.8322873322860055
         self.assertXYCorrespondance(x_value, y_value, x_data, y_data)
 
+    def test_formatting_into_xy_data_offset_y(self):
+        # With jsut a single input vector
+        x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
+                                        label_var = "Close", offset=5)
+        # Empty values mess things up, there shouldn't be any
+        self.assertNotIn([], x_data)
+        # The full data for GME 2021-03-12
+        x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615, 
+                    1.0087307269756611, 1.0576923076923077, 0.9128794701986755]]
+        y_value = 0.9711389691117529
+        self.assertXYCorrespondance(x_value, y_value, x_data, y_data)
+
     def test_formatting_into_xy_data_with_multiple_features(self):
         # With multiple input vectors
         x_data, y_data = format_into_xy(self.adjusted_data, num_features = 3,
@@ -395,6 +407,16 @@ class TestPreparingDataForTraining(unittest.TestCase):
         x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615, 
                     1.0087307269756611, 1.0576923076923077, 0.9128794701986755]]
         y_value = 0
+        self.assertXYCorrespondance(x_value, y_value, x_data, y_data)
+
+    def test_formatting_into_xy_data_with_y_manipulation_offset_y(self):
+        # Often we want to manipulate the label, e.g. for classification
+        x_data, y_data = format_into_xy(self.formatted_data, num_features = 1,
+                                        label_var = "Close", label_type = "bin",
+                                        divider = 0.95, offset=5)
+        x_value = [[1.0173076923076922, 1.0173076923076922, 1.1365384615384615, 
+                    1.0087307269756611, 1.0576923076923077, 0.9128794701986755]]
+        y_value = 1
         self.assertXYCorrespondance(x_value, y_value, x_data, y_data)
 
     def test_formatting_into_balanced_xy(self):
