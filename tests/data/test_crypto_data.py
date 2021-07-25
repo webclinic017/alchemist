@@ -1,6 +1,7 @@
 import math
 import unittest
 import pandas as pd
+from torch.utils.data import Dataset
 from alchemist.data.crypto_data import *
 
 
@@ -96,27 +97,90 @@ class TestDownloadingData(unittest.TestCase):
 
     def test_downloading_data_on_init(self):
         # Data should be downloaded if dates etc are provided on initialisation
-        data = CryptoData(pairs=["BTC-USD", "ETH-USD"], from_date="2021-06-01", 
+        data = CryptoData(pairs=["BTC-USD", "ETH-USD"], from_date="2021-06-01",
                           to_date="2021-06-07")
         specific_day_data = data.raw_data.loc["2021-06-05", "High"]
         self.assertAlmostEqual(specific_day_data["BTC-USD"], 37917.7, 0)
         self.assertAlmostEqual(specific_day_data["ETH-USD"], 2817.5, 0)
 
 
-class TestFormattingData(unittest.TestCase):
+class TestFormattingDataForTraining(unittest.TestCase):
+    
+    def setUp(self):
+        # This should download some data with plenty of irregular gaps,
+        # which formatting needs to be able to deal with
+        self.data = CryptoData(pairs=["BTC-USD", "ETH-USD"],
+                              from_date="2021-06-01", to_date="2021-06-06")
+        self.data.download_data(["BTC-USD"], "2021-06-11", "2021-06-15")
+        self.data.download_data(["ETH-USD"], "2021-06-06", "2021-06-08")
 
-    def test_(self):
+    def test_formatting_into_percentages(self):
+        # Should just generate a pandas df similar to raw_data
+        self.data.format_data_into_percentages()
+        specific_day_data = self.data.percentage_data.loc["2021-06-05", "High"]
+        self.assertAlmostEqual(specific_day_data["BTC-USD"], 1.028, 3)
+        self.assertAlmostEqual(specific_day_data["ETH-USD"], 1.048, 3)
+        # A bunch of the data should be nan gaps
+        data = self.data.percentage_data
+        self.assertTrue(math.isnan(data["High"]["BTC-USD"]["2021-06-08"]))
+        self.assertFalse(math.isnan(data["High"]["ETH-USD"]["2021-06-08"]))
+        self.assertTrue(math.isnan(data["High"]["BTC-USD"]["2021-06-11"]))
+        self.assertTrue(math.isnan(data["High"]["BTC-USD"]["2021-06-01"]))
+        # Volume must be formatted seperately, in relation to other volume
+        self.assertAlmostEqual(
+                data["Volume"]["BTC-USD"]["2021-06-04"], 1.18, 3)
+
+    def test_basic_dataset(self):
+        self.data.format_data_into_percentages()
+        self.data.generate_datasets()
+        self.assertIsInstance(self.data.train_ds, Dataset)
+        self.assertNotIn(math.nan, self.data.train_ds.y_data)
+        x_value = [[0.952272357743142, 0.952272357743142, 1.0019962111851022,
+                    0.9301928746591981, 1.0001539088344926, 0.979960886160529]]
+        y_value = 1.0997213189467518
+        index = self.data.train_ds.x_data.index(x_value)
+        self.assertEqual(self.data.train_ds.y_data[index], y_value)
+
+    def test_train_test_split_datasets(self):
+        self.data.format_data_into_percentages()
+        self.data.generate_datasets(train_fraction=0.7)
+        self.assertIsInstance(self.data.train_ds, Dataset)
+        self.assertIsInstance(self.data.test_ds, Dataset)
+        self.assertAlmostEqual(self.data.train_ds.length / 7,
+                               self.data.test_ds.length / 3, 1)
+
+    def test_volatility_adjusted_datasets(self):
+        self.data.generate_datasets(adjust_volatility = True)
+        # TODO: Check the success of this
+
+    def test_backtest_dataset(self):
+        self.data.generate_datasets(adjust_volatility = True,
+                                    backtest_dataset=True)
+
+
+class TestFormattingVariables(unittest.TestCase):
+
+    def test_balance(self):
         pass
 
+    def test_formatting_basis(self):
+        pass
 
-class TestPreparingDataForTraining(unittest.TestCase):
+    def test_volatility_type(self):
+        pass
 
-    def test_(self):
+    def test_num_features(self):
+        pass
+
+    def test_label_var(self):
+        pass
+
+    def test_divider(self):
         pass
 
 
 class TestSavingLoadingData(unittest.TestCase):
-    # If given a filename, the data mmanager should load as much
+    # If given a filename, the data manager should load as much
     # data as possible from the file and download / format the rest
 
     def test_(self):
