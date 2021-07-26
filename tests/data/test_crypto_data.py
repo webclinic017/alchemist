@@ -175,7 +175,7 @@ class TestFormattingDataForTraining(unittest.TestCase):
     def test_formatting_on_init(self):
         data = CryptoData(pairs=["BTC-USD", "ETH-USD"],
                           from_date="2021-06-05", to_date="2021-06-15",
-                          adjust_volatility = False)
+                          adjust_volatility=False)
         # Specifying adjust_volatility on init should be enough to make the ds
         x_value = [[0.952272357743142, 0.952272357743142, 1.0019962111851022,
                     0.9301928746591981, 1.0001539088344926, 0.979960886160529]]
@@ -186,23 +186,37 @@ class TestFormattingDataForTraining(unittest.TestCase):
 
 class TestFormattingVariables(unittest.TestCase):
 
+    def test_divider(self):
+        data = CryptoData(pairs=["BTC-USD", "ETH-USD"],
+                          from_date="2021-06-10", to_date="2021-06-15",
+                          adjust_volatility=False, divider=1)
+        x_value = [[0.952272357743142, 0.952272357743142, 1.0019962111851022,
+                    0.9301928746591981, 1.0001539088344926, 0.979960886160529]]
+        y_value = 1.0
+        index = data.train_ds.x_data.index(x_value)
+        self.assertEqual(data.train_ds.y_data[index], y_value)
+
     def test_balance(self):
-        pass
-
-    def test_formatting_basis(self):
-        pass
-
-    def test_volatility_type(self):
-        pass
+        data = CryptoData(pairs=["BTC-USD", "ETH-USD"],
+                          from_date="2021-06-01", to_date="2021-06-10",
+                          adjust_volatility=False, divider=1, balance=True)
+        self.assertEqual(data.train_ds.y_data.count(0),
+                         data.train_ds.y_data.count(1))
 
     def test_num_features(self):
-        pass
+        data = CryptoData(pairs=["BTC-USD", "ETH-USD"],
+                          from_date="2021-06-01", to_date="2021-06-10",
+                          adjust_volatility=False, n_features=3)
+        self.assertEqual(len(data.train_ds.x_data[0]), 3)
 
-    def test_label_var(self):
-        pass
+    # def test_formatting_basis(self):
+        # pass
 
-    def test_divider(self):
-        pass
+    # def test_volatility_type(self):
+        # pass
+
+    # def test_label_var(self):
+        # pass
 
 
 class TestSavingLoadingData(unittest.TestCase):

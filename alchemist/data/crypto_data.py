@@ -11,13 +11,16 @@ class CryptoData():
 
     def __init__(self, pairs=None, from_date=None, to_date=None,
                  adjust_volatility=None, n_features=1, train_fraction=1,
-                 backtest_dataset=False):
+                 backtest_dataset=False, divider=None, balance=False):
+        # All necessary operations can be called by specifying variables
+        # on initialisation
         if pairs != None:
             self.download_data(pairs, from_date, to_date)
         if adjust_volatility != None:
             self.format_data_into_percentages()
             self.generate_datasets(adjust_volatility, n_features, 
-                                   train_fraction, backtest_dataset)
+                                   train_fraction, backtest_dataset,
+                                   divider, balance)
 
     def download_data(self, pairs, from_date, to_date):
         # Download data, silently
@@ -54,7 +57,8 @@ class CryptoData():
                 last_index = index
 
     def generate_datasets(self, adjust_volatility=False, n_features=1,
-                          train_fraction=1, backtest_dataset=False):
+                          train_fraction=1, backtest_dataset=False,
+                          divider=None, balance=False):
         x_data = []
         y_data = []
         index_list = []
@@ -68,8 +72,7 @@ class CryptoData():
             for date_index, date in enumerate(relevant_df.index, n_features-1):
                 x_data.append([l.tolist() for l in relevant_df.iloc[
                     date_index-n_features : date_index].values])
-                y_data.append(relevant_df.loc[relevant_df.index[date_index],
-                                     ["Close"]].values[0])
+                y_data.append(relevant_df.loc[date, ["Close"]].values[0])
                 index_list.append(date_index)
 
         # Remove nan values from x and y data
@@ -85,9 +88,20 @@ class CryptoData():
         y_data = [y for i, y in enumerate(y_data) if i not in nan_set]
         index_list = [y for i, y in enumerate(index_list) if i not in nan_set]
 
-        # Fix labels
+        # Turn labels into 1's and 0's based on divider
+        if divider != None:
+            y_data = [(1 if y >= divider else 0) for y in y_data]
 
-        # Balance data
+        # Balance Data, though this isn't the best solution to imbalanced data
+        if balance:
+            while y_data.count(1) > y_data.count(0):
+                bad_index = y_data.index(1)
+                y_data.pop(bad_index)
+                x_data.pop(bad_index)
+            while y_data.count(1) < y_data.count(0):
+                bad_index = y_data.index(0)
+                y_data.pop(bad_index)
+                x_data.pop(bad_index)
 
         # Adjust every set of features to be between 0 and 1
         # NOTE: Maybe volume should be done seperately?
