@@ -110,7 +110,7 @@ class TestFormattingDataForTraining(unittest.TestCase):
         # This should download some data with plenty of irregular gaps,
         # which formatting needs to be able to deal with
         self.data = CryptoData(pairs=["BTC-USD", "ETH-USD"],
-                              from_date="2021-06-01", to_date="2021-06-06")
+                               from_date="2021-06-01", to_date="2021-06-06")
         self.data.download_data(["BTC-USD"], "2021-06-11", "2021-06-15")
         self.data.download_data(["ETH-USD"], "2021-06-06", "2021-06-08")
 
@@ -150,12 +150,38 @@ class TestFormattingDataForTraining(unittest.TestCase):
                                self.data.test_ds.length / 3, 1)
 
     def test_volatility_adjusted_datasets(self):
+        self.data.format_data_into_percentages()
         self.data.generate_datasets(adjust_volatility = True)
-        # TODO: Check the success of this
+        # This is the same data checked above, with adjusted volatility
+        x_value = [[0.9503752081226438, 0.9503752081226438, 1.0, 
+                    0.9283397125414483, 0.9981613679472594, 
+                    0.9780085745049764]]
+        y_value = 1.0997213189467518
+        index = self.data.train_ds.x_data.index(x_value)
+        self.assertEqual(self.data.train_ds.y_data[index], y_value)
 
     def test_backtest_dataset(self):
+        self.data.format_data_into_percentages()
         self.data.generate_datasets(adjust_volatility = True,
                                     backtest_dataset=True)
+        # If we had data for more than one pair for a given day,
+        # We should have a corresponding x with more than one set of data
+        # As such backtest data's data will have an extra dimension
+        self.assertEqual(len(self.data.backtest_ds.x_data[0]), 2)
+        self.assertEqual(len(self.data.backtest_ds.x_data[-1]), 1)
+        self.assertEqual(len(self.data.backtest_ds.y_data[0]), 2)
+        self.assertEqual(len(self.data.backtest_ds.y_data[-1]), 1)
+
+    def test_formatting_on_init(self):
+        data = CryptoData(pairs=["BTC-USD", "ETH-USD"],
+                          from_date="2021-06-05", to_date="2021-06-15",
+                          adjust_volatility = False)
+        # Specifying adjust_volatility on init should be enough to make the ds
+        x_value = [[0.952272357743142, 0.952272357743142, 1.0019962111851022,
+                    0.9301928746591981, 1.0001539088344926, 0.979960886160529]]
+        y_value = 1.0997213189467518
+        index = data.train_ds.x_data.index(x_value)
+        self.assertEqual(data.train_ds.y_data[index], y_value)
 
 
 class TestFormattingVariables(unittest.TestCase):

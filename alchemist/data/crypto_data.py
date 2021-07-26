@@ -9,9 +9,15 @@ from sklearn.model_selection import train_test_split
 
 class CryptoData():
 
-    def __init__(self, pairs=None, from_date=None, to_date=None):
+    def __init__(self, pairs=None, from_date=None, to_date=None,
+                 adjust_volatility=None, n_features=1, train_fraction=1,
+                 backtest_dataset=False):
         if pairs != None:
             self.download_data(pairs, from_date, to_date)
+        if adjust_volatility != None:
+            self.format_data_into_percentages()
+            self.generate_datasets(adjust_volatility, n_features, 
+                                   train_fraction, backtest_dataset)
 
     def download_data(self, pairs, from_date, to_date):
         # Download data, silently
@@ -47,21 +53,24 @@ class CryptoData():
                     self.percentage_data.loc[index, column] = math.nan
                 last_index = index
 
-    def generate_datasets(self, n_features=1, train_fraction = 1):
+    def generate_datasets(self, adjust_volatility=False, n_features=1,
+                          train_fraction=1, backtest_dataset=False):
         x_data = []
         y_data = []
+        index_list = []
         
+        # NOTE: For backtest_ds keep track of dates/indeces?
         # Arrange percentage data into x and y data
         reordered_df = self.percentage_data.reorder_levels([1, 0], 1)
         pairs = set(reordered_df.columns.get_level_values(0))
         for pair in pairs:
             relevant_df = reordered_df[pair]
-            for date_index in enumerate(relevant_df.index, n_features-1):
-                date_index = date_index[0]
+            for date_index, date in enumerate(relevant_df.index, n_features-1):
                 x_data.append([l.tolist() for l in relevant_df.iloc[
                     date_index-n_features : date_index].values])
                 y_data.append(relevant_df.loc[relevant_df.index[date_index],
                                      ["Close"]].values[0])
+                index_list.append(date_index)
 
         # Remove nan values from x and y data
         nan_indexes = []
@@ -74,15 +83,32 @@ class CryptoData():
         nan_set = set(nan_indexes)
         x_data = [x for i, x in enumerate(x_data) if i not in nan_set]
         y_data = [y for i, y in enumerate(y_data) if i not in nan_set]
+        index_list = [y for i, y in enumerate(index_list) if i not in nan_set]
+
+        # Fix labels
 
         # Balance data
 
-        # Adjust volatility
-        
-        # Fix labels
+        # Adjust every set of features to be between 0 and 1
+        # NOTE: Maybe volume should be done seperately?
+        if adjust_volatility:
+            for i, x in enumerate(x_data):
+                max_x = 0
+                for _x in x:
+                    max_x = max(_x) if max(_x) > max_x else max_x
+                x_data[i] = [[__x/max_x for __x in _x] for _x in x]
 
         # Create datasets
-        if train_fraction == 1:
+        if backtest_dataset:
+            # Rearrange the data to be clumps of days
+            x_data = [[x_data[
+                    [ind for ind, v in enumerate(index_list) if v == j][i]] 
+                for i in range(index_list.count(j))] for j in set(index_list)]
+            y_data = [[y_data[
+                    [ind for ind, v in enumerate(index_list) if v == j][i]] 
+                for i in range(index_list.count(j))] for j in set(index_list)]
+            self.backtest_ds = CryptoDataset(x_data, y_data) 
+        elif train_fraction == 1:
             self.train_ds = CryptoDataset(x_data, y_data)
         else:
             x_train, x_test, y_train, y_test = train_test_split(
