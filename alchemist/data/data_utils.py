@@ -1,5 +1,6 @@
 import os
 import pickle
+from torch.utils.data import Dataset
 
 def save_data(data, fname, backup = False):
     # print("Storing data at " + fname)
@@ -38,3 +39,17 @@ def load_data(fname, save_backup = True):
             save_data(data, old_fname, backup = False)
 
     return data
+
+class Dataset (Dataset):
+    # Dataset interacts correctly with data_loader
+    def __init__(self, x_data, y_data):
+        # Set parameters and things
+        self.x_data = x_data
+        self.y_data = y_data
+        self.length = len(self.x_data)
+
+    def __getitem__(self, index):
+        return np.array([self.x_data[index]]), self.y_data[index]
+
+    def __len__(self):
+        return self.length

@@ -4,7 +4,7 @@ import contextlib
 import numpy as np
 import pandas as pd
 import yfinance as yf
-from torch.utils.data import Dataset
+from alchemist.data.data_utils import *
 from sklearn.model_selection import train_test_split
 
 
@@ -122,25 +122,12 @@ class CryptoData():
             y_data = [[y_data[
                     [ind for ind, v in enumerate(index_list) if v == j][i]] 
                 for i in range(index_list.count(j))] for j in set(index_list)]
-            self.backtest_ds = CryptoDataset(x_data, y_data) 
+            self.backtest_ds = Dataset(x_data, y_data) 
         elif train_fraction == 1:
-            self.train_ds = CryptoDataset(x_data, y_data)
+            self.train_ds = Dataset(x_data, y_data)
         else:
             x_train, x_test, y_train, y_test = train_test_split(
                     x_data, y_data, train_size = train_fraction)
-            self.train_ds = CryptoDataset(x_train, y_train)
-            self.test_ds = CryptoDataset(x_test, y_test)
+            self.train_ds = Dataset(x_train, y_train)
+            self.test_ds = Dataset(x_test, y_test)
 
-class CryptoDataset (Dataset):
-    # CryptoDataset interacts correctly with data_loader
-    def __init__(self, x_data, y_data):
-        # Set parameters and things
-        self.x_data = x_data
-        self.y_data = y_data
-        self.length = len(self.x_data)
-
-    def __getitem__(self, index):
-        return np.array([self.x_data[index]]), self.y_data[index]
-
-    def __len__(self):
-        return self.length
