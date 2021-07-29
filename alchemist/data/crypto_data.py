@@ -1,6 +1,7 @@
 import io
 import math  
 import contextlib
+import numpy as np
 import pandas as pd
 import yfinance as yf
 from torch.utils.data import Dataset
@@ -78,7 +79,7 @@ class CryptoData():
         # Remove nan values from x and y data
         nan_indexes = []
         for i, x in enumerate(x_data):
-            if math.isnan(y_data[i]):
+            if math.isnan(y_data[i]) or len(x) < n_features:
                 nan_indexes.append(i)
             for x_ in x:
                 if math.isnan(x_[0]):

@@ -11,8 +11,9 @@ import torch.nn.functional as F
 
 class Agent(nn.Module):
 
-    def __init__(self, train_ds=None, test_ds=None, batch_size=128,
-                 learning_rate=4e-3, num_workers=0, kernel_size=3):
+    def __init__(self, train_ds=None, test_ds=None, backtest_ds=None, 
+                 batch_size=30, learning_rate=4e-3, num_workers=0,
+                 kernel_size=3):
         super(Agent, self).__init__()
 
         self.n_features = len(train_ds.x_data[-1])
@@ -48,6 +49,7 @@ class Agent(nn.Module):
         self.test_data_loader = None if test_ds == None else (
                 T.utils.data.DataLoader(train_ds, batch_size = batch_size, 
                                         shuffle=True, num_workers=num_workers))
+        self.backtest_ds = backtest_ds
 
         # For documentation, testing etc.
         self.loss_history = []
@@ -239,6 +241,7 @@ class Agent(nn.Module):
                     # "accuracy %.3f" % np.mean(ep_acc))
         return np.mean(acc_history), np.mean(loss_history)
 
-
+    def backtest(self):
+        pass
 
 
