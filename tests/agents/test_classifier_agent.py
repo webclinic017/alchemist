@@ -1,151 +1,164 @@
-import torch
+import os
+import logging
 import unittest
-from alchemist.agents.classifier_agent import *
+import torch as T
+import numpy as np
+import pandas as pd
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.model_selection import train_test_split
+from alchemist.agents.classifier_agent import ClassifierAgent as Agent
+from alchemist.data.data_utils import *
 
-class TestConvolutionalLayers(unittest.TestCase):
+# NOTE: This is probably the wrong way to test a CNN, and may need rewriting
 
-    def test_basic_layer_creation(self):
-        agent = ClassifierAgent()
-        agent.init_conv_layers()
-        self.assertTrue(type(agent.conv_list) is list)
-        self.assertTrue(type(agent.maxpool_list) is list)
-        self.assertTrue(type(agent.conv_list[0])
-                        is torch.nn.Conv2d)
-        self.assertTrue(type(agent.maxpool_list[0])
-                        is torch.nn.MaxPool2d)
+class TestAgentCreation(unittest.TestCase):
 
-    def test_setting_number_of_layers(self):
-        agent = ClassifierAgent()
-        agent.init_conv_layers(n_layers = 3)
-        self.assertEqual(len(agent.conv_list), 3)
-        self.assertEqual(len(agent.maxpool_list), 3)
-        agent.init_conv_layers(n_layers = 5)
-        self.assertEqual(len(agent.conv_list), 5)
-        self.assertEqual(len(agent.maxpool_list), 5)
+    @classmethod
+    def setUpClass(cls):
+        # Using fake data, this class isn't for specifically crypto or tickers
+        x = [[[3.0,3.0,3.0], [3.0,3.0,3.0]]] * 50
+        y = [1] * 50
+        x += [[[-1.0,-1.0,-1.0], [-1.0,-1.0,-1.0]]] * 50
+        y += [0] * 50
+        x_train, x_test, y_train, y_test = train_test_split(
+                x, y, train_size=0.8, shuffle=True)
+        cls.train_ds = Dataset(x_train, y_train)
+        cls.test_ds = Dataset(x_test, y_test)
 
-    def test_setting_conv_layer_input_dims(self):
-        agent = ClassifierAgent(input_dims = [4, 1, 1])
-        agent.init_conv_layers()
-        self.assertEqual(agent.conv_list[0].in_channels, 4)
-        agent = ClassifierAgent(input_dims = [20, 1, 1])
-        agent.init_conv_layers()
-        self.assertEqual(agent.conv_list[0].in_channels, 20)
-
-    def test_layer_size_compatability(self):
-        agent = ClassifierAgent()
-        agent.init_conv_layers(n_layers = 10)
-        for l in range(len(agent.conv_list) - 1):
-            self.assertEqual(agent.conv_list[l].out_channels,
-                             agent.conv_list[l+1].in_channels)
-
-    def test_forward_through_conv_layers(self):
-        agent = ClassifierAgent(input_dims = [7, 4, 20])
-        agent.init_conv_layers(n_layers = 10)
-        x = torch.randn(1, 7, 4, 20)
-        for l in range(len(agent.conv_list)):
-            x = agent.conv_list[l](x)
-            x = agent.maxpool_list[l](x)
-
-    def test_padding(self):
-        # Padding should mean that the inputs and outputs of any
-        # layer have the same dimentions.
-        agent = ClassifierAgent(input_dims = [4, 20, 69])
-        agent.init_conv_layers(n_layers = 10)
-        x = torch.randn(1, 4, 20, 69)
-        for l in range(len(agent.conv_list)):
-            y = agent.conv_list[l](x)
-            y = agent.maxpool_list[l](y)
-            self.assertEqual(y.size(), torch.Size([1, 16, 20, 69]))
-            x = y
-
-
-class TestFullyConnectedLayers(unittest.TestCase):
-
-    def setUp(self):
-        self.agent = ClassifierAgent(input_dims = [2, 10, 4])
-        self.agent.init_conv_layers(n_layers = 2)
+    def test_basic_initialization(self):
+        # We should be able to initialize the agent easily, providing only
+        # the training data in the form of a dataset
+        agent = Agent(self.test_ds)
+        self.assertEqual(agent.n_features, 2)
+        self.assertIsInstance(agent.conv1, nn.Conv2d)
+        self.assertIsInstance(agent.maxpool1, nn.MaxPool2d)
+        self.assertIsInstance(agent.fc1, nn.Linear)
+        self.assertIsInstance(agent.device, T.device)
+        self.assertIsNotNone(type(agent.optimizer))
+        self.assertIsNotNone(type(agent.loss))
 
     def test_calc_input_dims(self):
-        # Agent here is not self.agent, so different input_dims etc.
-        # can be tested if necessary without affecting other tests
-        agent = ClassifierAgent(input_dims = [2, 10, 4])
-        agent.init_conv_layers()
-        input_dims = agent.calc_input_dims()
-        self.assertEqual(input_dims, 640)
+        x = [[[3.0,3.0,3.0]]] * 50
+        y = [1] * 50
+        dataset1 = Dataset(x, y)
+        x = [[[3.0,3.0,3.0], [3.0,3.0,3.0], [3.0,3.0,3.0]]] * 50
+        y = [1] * 50
+        dataset2 = Dataset(x, y)
+        dims1 = Agent(dataset1).input_dims
+        dims2 = Agent(dataset2).input_dims
+        self.assertIsInstance(dims1, int)
+        self.assertNotEqual(dims1, dims2)
 
-    def test_basic_fc_layer_creation(self):
-        self.agent.init_fc_layers()
-        self.assertTrue(type(self.agent.fc_list) is list)
-        self.assertTrue(type(self.agent.fc_list[0])
-                        is torch.nn.Linear)
+    def test_train_test_data_loaders(self):
+        agent = Agent(self.train_ds)
+        self.assertIsInstance(agent.train_data_loader, T.utils.data.DataLoader)
+        self.assertIsNone(agent.test_data_loader)
+        agent = Agent(self.train_ds, self.test_ds)
+        self.assertIsInstance(agent.train_data_loader, T.utils.data.DataLoader)
+        self.assertIsInstance(agent.test_data_loader, T.utils.data.DataLoader)
 
-    def test_setting_number_of_fc_layers(self):
-        self.agent.init_fc_layers(n_layers = 2)
-        self.assertEqual(len(self.agent.fc_list), 2)
-        self.agent.init_fc_layers(n_layers = 6)
-        self.assertEqual(len(self.agent.fc_list), 6)
+    def test_initialization_using_baktest_ds(self):
+        # Supplying only the backtest_ds should be enough to make the agent
+        x = [[[[3.0,3.0,3.0], [3.0,3.0,3.0]], 
+              [[-1.0, -1.0, -1.0], [-1.0, -1.0, -1.0]]]] * 50
+        y = [[1.2, 0.8]] * 50
+        backtest_ds = Dataset(x, y)
+        agent = Agent(backtest_ds = backtest_ds)
+        self.assertIsNone(agent.train_data_loader)
+        self.assertIsNone(agent.test_data_loader)
+        self.assertEqual(agent.n_features, 2)
+        self.assertIsInstance(agent.conv1, nn.Conv2d)
+        self.assertIsInstance(agent.maxpool1, nn.MaxPool2d)
+        self.assertIsInstance(agent.fc1, nn.Linear)
+        self.assertIsInstance(agent.device, T.device)
 
-    def test_fc_layer_detect_input_dims(self):
-        agent = ClassifierAgent(input_dims = [1, 6, 2])
-        agent.init_conv_layers()
-        agent.init_fc_layers()
-        self.assertEqual(agent.fc_list[0].in_features, 192)
-        agent = ClassifierAgent(input_dims = [4, 20, 69])
-        agent.init_conv_layers(n_layers = 3)
-        agent.init_fc_layers()
-        self.assertEqual(agent.fc_list[0].in_features, 22080)
-
-    def test_setting_fc_layer_output_dims(self):
-        self.agent.init_fc_layers(n_outputs = 2)
-        self.assertEqual(self.agent.fc_list[-1].out_features, 2)
-        self.agent.init_fc_layers(n_outputs = 5)
-        self.assertEqual(self.agent.fc_list[-1].out_features, 5)
+    def test_changing_data_loader_params(self):
+        agent = Agent(self.train_ds, num_workers = 5)
+        self.assertEqual(agent.train_data_loader.num_workers, 5)
+        agent = Agent(self.train_ds, self.test_ds, num_workers = 10)
+        self.assertEqual(agent.train_data_loader.num_workers, 10)
+        self.assertEqual(agent.test_data_loader.num_workers, 10)
 
 
-class TestOtherFunctions(unittest.TestCase):
+class TestAgentFunctionality(unittest.TestCase):
 
-    def test_creating_agent_with_single_call(self):
-        # We should be able to create an Agent just by calling the class
-        agent = ClassifierAgent(input_dims = [1, 1, 1], n_conv_layers = 1,
-                                n_fc_layers = 1, n_outputs = 2)
-        self.assertEqual(len(agent.conv_list), 1)
-        self.assertEqual(len(agent.maxpool_list), 1)
-        self.assertEqual(len(agent.fc_list), 1)
-        self.assertEqual(agent.fc_list[-1].out_features, 2)
+    def setUp(self):
+        # This fake data is easily classifyiable to test the agent easily
+        x = [[[3.0,3.0,3.0], [3.0,3.0,3.0]]] * 50
+        y = [1] * 50
+        x += [[[-1.0,-1.0,-1.0], [-1.0,-1.0,-1.0]]] * 50
+        y += [0] * 50
+        x_train, x_test, y_train, y_test = train_test_split(
+                x, y, train_size=0.8, shuffle=True)
+        self.train_ds = Dataset(x_train, y_train)
+        self.test_ds = Dataset(x_test, y_test)
+        self.agent = Agent(self.train_ds, self.test_ds)
 
-    def test_forward_through_all_layers(self):
-        agent = ClassifierAgent(input_dims = [2, 4, 20],
-                                n_conv_layers = 3,
-                                n_fc_layers = 2,
-                                n_outputs = 2)
-        x = torch.randn(1, 2, 4, 20)
-        x = agent.forward(x)
-        # As we can't know exactly what x should be, we can settle
-        # for checking its dimensions.
-        self.assertEqual(type(x), torch.Tensor)
-        self.assertEqual(len(x[0]), 2)
+    def test_padding(self):
+        x = T.zeros((1, 1, 3, 2)).to(self.agent.device)
+        x = self.agent.conv1(x)
+        x = self.agent.maxpool1(x)
+        x = self.agent.conv2(x)
+        x = self.agent.maxpool2(x)
+        x = self.agent.conv3(x)
+        x = self.agent.maxpool3(x)
+        self.assertEqual(x.size(), T.Size([1, 32, 3, 2]))
 
-    # At this point I realised I don't have time to redo the
-    # agent right now, and that I might have started foing it
-    # wrong. If you're reading this in the future, it's up to
-    # you to make this commented test work, or redo the whole
-    # file.
+    def test_forward(self):
+        x = T.zeros((1, 1, 3, 2))
+        y = self.agent.forward(x)
+        self.assertEqual(y.size(), T.Size([1, 2]))
+        self.assertEqual(y.device, self.agent.device)
 
-    # def test_sending_tensor_to_device(self):
-        # # Not quite sure how to *best* test this, but this works
-        # agent = ClassifierAgent(input_dims = [1, 3, 10],
-                                # n_conv_layers = 3,
-                                # n_fc_layers = 2,
-                                # n_outputs = 2)
-        # x = torch.randn(1, 1, 3, 10)
-        # x = agent.forward(x)
-        # if torch.cuda.is_available():
-            # self.assertEqual(agent.device.type, "cuda")
-            # self.assertTrue(x.is_cuda)
-        # else:
-            # self.assertEqual(agent.device.type, "cpu")
-            # self.assertFalse(x.is_cuda)
+    def test_save_load_agent(self):
+        # NOTE: Maybe the state dict saved should be tested more thoroughly
+        path = "cache/tests/agents/ClassifierAgentTestSave"
+        if os.path.isfile(path):
+            os.remove(path)
+        self.agent.save_chkpt(path = path)
+        # Check the save file has been made, try loading from it
+        self.assertTrue(os.path.isfile(path))
+        self.agent.load_chkpt(path = path)
 
+    def test_train(self):
+        # Run the train function
+        train_hist = self.agent.train_(epochs = 30)
+        # The acc and loss history should show improvement
+        self.assertIsInstance(train_hist, pd.DataFrame)
+        epochs = train_hist["epoch"]
+        acc_h = train_hist["acc"].values
+        loss_h = train_hist["loss"].values
+        self.assertTrue(len(acc_h) > 0)
+        self.assertTrue(len(loss_h) > 0)
+        self.assertEqual(acc_h[-1], 1)
+        self.assertAlmostEqual(loss_h[-1], 0, 1)
+
+    def test_test(self):
+        # Test an untrained agent
+        acc1, loss1 = self.agent.test_()
+        self.assertIsInstance(acc1, np.float64)
+        # Test a trained agent
+        self.agent.train_(epochs = 20)
+        acc2, loss2 = self.agent.test_()
+        # Compare
+        self.assertTrue(acc1 < acc2)
+        self.assertTrue(loss1 > loss2)
+
+    def test_backtest(self):
+        # This fake data should give predictable backtest results
+        x = [[[[3.0,3.0,3.0], [3.0,3.0,3.0]], 
+              [[-1.0, -1.0, -1.0], [-1.0, -1.0, -1.0]]]] * 10
+        y = [[1.2, 0.8]] * 10
+        backtest_ds = Dataset(x, y)
+        agent = Agent(self.train_ds, backtest_ds = backtest_ds)
+        agent.train_(epochs = 10)
+        backtest_results = agent.backtest()
+        # The backtest results should contain the test's history for graphing,
+        # the average daily earnings and total earnings
+        self.assertIsInstance(backtest_results[0], list)
+        self.assertAlmostEqual(backtest_results[1], 1.2)
+        self.assertAlmostEqual(backtest_results[2], pow(1.2, 10))
 
 
 if __name__ == "__main__":

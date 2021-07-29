@@ -1,5 +1,6 @@
 import os
 import pickle
+import numpy as np
 from torch.utils.data import Dataset
 
 def save_data(data, fname, backup = False):
