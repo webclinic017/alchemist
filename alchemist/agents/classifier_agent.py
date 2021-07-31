@@ -13,7 +13,7 @@ import torch.nn.functional as F
 class ClassifierAgent(nn.Module):
 
     def __init__(self, train_ds=None, test_ds=None, backtest_ds=None, 
-                 batch_size=30, learning_rate=4e-3, num_workers=0,
+                 batch_size=30, learning_rate=1e-3, num_workers=0,
                  kernel_size=3):
         super(ClassifierAgent, self).__init__()
 
@@ -137,7 +137,7 @@ class ClassifierAgent(nn.Module):
                 ep_acc.append(acc.item())
             acc_history.append(np.mean(ep_acc))
             loss_history.append(ep_loss)
-            ep_time = (datetime.datetime.now() - ep_start_time).seconds
+            ep_time = (datetime.datetime.now()-ep_start_time).microseconds/1e6
             logger.info("Finished epoch %s in %.3f seconds, total "
                         "loss %.3f, accuracy %.3f", ep, ep_time, ep_loss,
                         np.mean(ep_acc))
@@ -188,10 +188,14 @@ class ClassifierAgent(nn.Module):
             prediction = F.softmax(prediction, dim=1)
             classes = T.argmax(prediction, dim=1)
             earnings = [y_ for j, y_ in enumerate(y) if classes[j] == 1]
+            if len(earnings) == 0: earnings = [1]
             earnings = np.mean(earnings)
             earnings_list.append(earnings)
 
         average_earnings = np.mean(earnings_list)
         total_earnings = np.product(earnings_list)
+        logger = logging.getLogger()
+        logger.info("Finished backtest with average earnings %.3f and total"
+                    " earnings %.3f", average_earnings, total_earnings)
 
         return earnings_list, average_earnings, total_earnings
