@@ -4,8 +4,8 @@ from tests.utils.graphing import *
 from alchemist.data.crypto_data import *
 from alchemist.agents.classifier_agent import *
 
-pairs = ["BTC-USD", "ETH-USD", "BNB-USD", "ADA-USD", "XRP-USD", "DOT-USD", 
-         "UNI-USD"]
+pairs = ["BTC-USD", "ETH-USD"]#, "BNB-USD", "ADA-USD", "XRP-USD", "DOT-USD", 
+         # "UNI-USD"]
 
 class TestMain(unittest.TestCase):
 

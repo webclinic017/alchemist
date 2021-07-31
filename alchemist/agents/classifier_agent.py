@@ -192,6 +192,7 @@ class ClassifierAgent(nn.Module):
             earnings = np.mean(earnings)
             earnings_list.append(earnings)
 
+        print(earnings_list)
         average_earnings = np.mean(earnings_list)
         total_earnings = np.product(earnings_list)
         logger = logging.getLogger()
