@@ -25,6 +25,13 @@ class crypto():
         agent.train_(epochs=epochs)
         agent.save_chkpt(path=self.agent_path)
 
+    def backtest(self):
+        data = CryptoData(self.pairs, "2021-01-01", "2021-08-01", balance=True,
+                          adjust_volatility=False, n_features=self.n_features,
+                          backtest_dataset=True)
+        agent = ClassifierAgent(backtest_ds=data.backtest_ds)
+        agent.load_chkpt(self.agent_path)
+        agent.backtest()
 
     def update_holdings(self):
         # Invoke API

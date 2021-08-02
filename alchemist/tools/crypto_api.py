@@ -17,21 +17,27 @@ class CryptoAPI():
     def update_holdings(self):
         # Load most recent data
         print(self.pairs)
-        to_date = datetime.datetime.today()
+        offset = 22
+        to_date = datetime.datetime.today() - datetime.timedelta(days=offset)
+        print(to_date)
         from_date = to_date - datetime.timedelta(days=self.n_features)
+        print(from_date)
         data = CryptoData(self.pairs, from_date, to_date)
         data.format_data_into_percentages()
+        print(data.percentage_data)
         # NOTE: This should be a part of CryptoData, not this messy thing
         x_data = []
         reordered_df = data.percentage_data.reorder_levels([1, 0], 1)
         for pair in self.pairs:
             relevant_df = reordered_df[pair]
             x_data.append([relevant_df.iloc[1:].values])
+        print(x_data)
 
         # Load agent
         data.generate_datasets(n_features=self.n_features)
         agent = ClassifierAgent(data.train_ds)
         agent.load_chkpt(path=self.agent_path)
+        agent.eval()
 
         # Make decision
         decision_list = []

@@ -171,6 +171,16 @@ class TestFormattingDataForTraining(unittest.TestCase):
         self.assertEqual(len(self.data.backtest_ds.x_data[-1]), 1)
         self.assertEqual(len(self.data.backtest_ds.y_data[0]), 2)
         self.assertEqual(len(self.data.backtest_ds.y_data[-1]), 1)
+        # But, as this specific data is single-day, the correspondance should
+        # still be valid
+        x_value = [[[0.9503752081226438, 0.9503752081226438, 1.0, 
+                     0.9283397125414483, 0.9981613679472594, 
+                     0.9780085745049764]]]
+        y_value = 1.0997213189467518
+        index = self.data.backtest_ds.x_data.index(x_value)
+        self.assertEqual(self.data.backtest_ds.y_data[index][0], y_value)
+        self.assertEqual(len(self.data.backtest_ds.x_data),
+                         len(self.data.backtest_ds.y_data))
 
     def test_formatting_on_init(self):
         data = CryptoData(pairs=["BTC-USD", "ETH-USD"],

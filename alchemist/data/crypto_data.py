@@ -1,5 +1,6 @@
 import io
 import math  
+import logging
 import contextlib
 import numpy as np
 import pandas as pd
@@ -25,8 +26,7 @@ class CryptoData():
 
     def download_data(self, pairs, from_date, to_date):
         # Download data, silently
-        with contextlib.redirect_stdout(io.StringIO()):
-            new_raw_data = yf.download(pairs, start=from_date, end=to_date)
+        new_raw_data = yf.download(pairs, start=from_date, end=to_date)
         # If there was only one pair, stack the columns like with multiple
         if len(pairs) == 1:
             multicol = pd.MultiIndex.from_tuples(
@@ -44,8 +44,11 @@ class CryptoData():
             self.raw_data = new_raw_data
 
     def format_data_into_percentages(self):
+        print("_")
         self.percentage_data = self.raw_data.copy()
+        print("_")
         for column, content in self.raw_data.items():
+            print(column)
             last_index = None
             for index, item in content.items():
                 try:
@@ -56,6 +59,7 @@ class CryptoData():
                 except:
                     self.percentage_data.loc[index, column] = math.nan
                 last_index = index
+        print("data formatted into percentages")
 
     def generate_datasets(self, adjust_volatility=False, n_features=1,
                           train_fraction=1, backtest_dataset=False,
@@ -69,11 +73,14 @@ class CryptoData():
         reordered_df = self.percentage_data.reorder_levels([1, 0], 1)
         pairs = set(reordered_df.columns.get_level_values(0))
         for pair in pairs:
+            print(pair, end="\r")
             relevant_df = reordered_df[pair]
-            for date_index, date in enumerate(relevant_df.index, n_features-1):
-                x_data.append([l.tolist() for l in relevant_df.iloc[
-                    date_index-n_features : date_index].values])
-                y_data.append(relevant_df.loc[date, ["Close"]].values[0])
+            for date_index in range(len(relevant_df.index))[n_features-1:]:
+                x = [l.tolist() for l in relevant_df.iloc[
+                    date_index-n_features : date_index].values]
+                y = relevant_df.iloc[date_index]["Close"]
+                x_data.append(x)
+                y_data.append(y)
                 index_list.append(date_index)
 
         # Remove nan values from x and y data
@@ -112,6 +119,8 @@ class CryptoData():
                 for _x in x:
                     max_x = max(_x) if max(_x) > max_x else max_x
                 x_data[i] = [[__x/max_x for __x in _x] for _x in x]
+
+        print(len(x_data))
 
         # Create datasets
         if backtest_dataset:

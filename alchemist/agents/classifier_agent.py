@@ -48,7 +48,7 @@ class ClassifierAgent(nn.Module):
                 T.utils.data.DataLoader(train_ds, batch_size = batch_size, 
                                         shuffle=True, num_workers=num_workers))
         self.test_data_loader = None if test_ds == None else (
-                T.utils.data.DataLoader(train_ds, batch_size = batch_size, 
+                T.utils.data.DataLoader(test_ds, batch_size = batch_size, 
                                         shuffle=True, num_workers=num_workers))
         self.backtest_ds = backtest_ds
 
@@ -141,6 +141,9 @@ class ClassifierAgent(nn.Module):
             logger.info("Finished epoch %s in %.3f seconds, total "
                         "loss %.3f, accuracy %.3f", ep, ep_time, ep_loss,
                         np.mean(ep_acc))
+            if ep % 20 == 0:
+                self.test_()
+                self.train()
 
         train_hist = pd.DataFrame({"epoch" : range(1, epochs + 1),
                                    "acc" : acc_history,
@@ -177,17 +180,30 @@ class ClassifierAgent(nn.Module):
         self.eval()
         earnings_list = []
 
+        # print(pd.DataFrame(self.backtest_ds.y_data))
+        # print(pd.DataFrame(self.backtest_ds.x_data))
+
         # Present the test input data to the agent one day at a time
         for i in range(self.backtest_ds.length):
             x = self.backtest_ds.x_data[i]
             y = self.backtest_ds.y_data[i]
+            for ah in x:
+                for aa in ah:
+                    for ar in aa:
+                        for yh in y:
+                            if ar == yh:
+                                print("AHHHHH GOD WHYYYYYY")
+            # print(x)
+            # print(y)
 
             x = T.tensor(x, device=self.device, dtype=T.float32)
             x = T.unsqueeze(x, 1)
             prediction = self.forward(x)
             prediction = F.softmax(prediction, dim=1)
             classes = T.argmax(prediction, dim=1)
+            # print(classes)
             earnings = [y_ for j, y_ in enumerate(y) if classes[j] == 1]
+            # print(earnings)
             if len(earnings) == 0: earnings = [1]
             earnings = np.mean(earnings)
             earnings_list.append(earnings)
@@ -196,7 +212,7 @@ class ClassifierAgent(nn.Module):
         average_earnings = np.mean(earnings_list)
         total_earnings = np.product(earnings_list)
         logger = logging.getLogger()
-        logger.info("Finished backtest with average earnings %.3f and total"
+        logger.info("Finished backtest with average earnings %.5f and total"
                     " earnings %.3f", average_earnings, total_earnings)
 
         return earnings_list, average_earnings, total_earnings
